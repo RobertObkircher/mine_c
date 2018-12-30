@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <GLFW/glfw3.h>
 
+#include "mathc-master/mathc.h"
+
 int main(void)
 {
     GLFWwindow* window;
