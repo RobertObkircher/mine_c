@@ -15,5 +15,6 @@ target_link_libraries(mine_c
         glad
         mathc
         dl
+        logc
 )
 

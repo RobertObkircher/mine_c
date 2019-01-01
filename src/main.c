@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <mathc.h>
 #include <GLFW/glfw3.h>
+#include <log.h>
 
 static void gl_error_callback(const int error, const char *description) {
     fprintf(stderr, "gl_error_callback: %d, %s\n", error, description);
@@ -37,6 +38,10 @@ static const char *fragment_shader_text =
 
 int main(void) {
     glfwSetErrorCallback(gl_error_callback);
+
+    log_trace("asdf");
+    log_debug("asdf");
+    log_warn("asdf");
 
     if (!glfwInit())
         return -1;
