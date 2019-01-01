@@ -1,0 +1,3 @@
+[submodule "dependencies/mathc"]
+	path = dependencies/mathc
+	url = https://github.com/felselva/mathc

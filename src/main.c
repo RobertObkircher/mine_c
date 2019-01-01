@@ -1,37 +1,42 @@
 #include <stdio.h>
+#include <glad/glad.h>
+#include <mathc.h>
 #include <GLFW/glfw3.h>
 
-#include "mathc-master/mathc.h"
+static void error_callback(const int error, const char* description) {
+   fprintf(stderr, "error_callback: %d, %s\n", error, description);
+}
 
 int main(void)
 {
-    GLFWwindow* window;
+    glfwSetErrorCallback(error_callback);
 
-    /* Initialize the library */
     if (!glfwInit())
         return -1;
 
-    /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
         return -1;
     }
 
-    /* Make the window's context current */
     glfwMakeContextCurrent(window);
+    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+    glfwSwapInterval(0);
 
-    /* Loop until the user closes the window */
+    GLuint vertexBuffer;
+    glGenBuffers(1, &vertexBuffer);
+
+
     while (!glfwWindowShouldClose(window))
     {
-        /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
-        /* Swap front and back buffers */
+        //
+
         glfwSwapBuffers(window);
 
-        /* Poll for and process events */
         glfwPollEvents();
     }
 
