@@ -13,20 +13,31 @@
 typedef struct {
     const char *directory_name;
     const char *filename;
+    char *path;
     int watch_descriptor;
 
-    void (*callback)(const char *directory_name, const char *filename);
+    void (*callback)(const char *path);
 } WatchedFile;
 
-static int fd;
+static int fd = -1;
 static int watched_files_count;
 static WatchedFile watched_files[FILERELOAD_MAX_WATCHED_FILES];
 
+static void reset() {
+    if (fd != -1) {
+        close(fd);
+        fd = -1;
+    }
+    while (watched_files_count > 0) {
+        free(watched_files[--watched_files_count].path);
+    }
+}
+
 void init_filereload() {
     log_debug("init");
+    reset(); // to free paths
 
     fd = inotify_init1(IN_NONBLOCK);
-    watched_files_count = 0;
     if (fd == -1) {
         perror("inotify_init1");
         exit(EXIT_FAILURE);
@@ -36,19 +47,35 @@ void init_filereload() {
 void close_filereload() {
     log_debug("close");
 
-    close(fd);
-    fd = -1;
-    watched_files_count = 0;
+    reset();
 }
 
 void listen_for_file_changes(const char *directory_name, const char *filename,
-                             void (*callback)(const char *directory_name, const char *filename)) {
+                             void (*callback)(char *path)) {
     if (watched_files_count < FILERELOAD_MAX_WATCHED_FILES) {
         WatchedFile *wf = &watched_files[watched_files_count++];
         wf->directory_name = directory_name;
         wf->filename = filename;
         wf->watch_descriptor = inotify_add_watch(fd, directory_name, IN_CREATE | IN_MODIFY | IN_MOVED_TO);
         wf->callback = callback;
+        {
+            /* concatenate directory_name and filename */
+
+            const size_t dir_len = strlen(directory_name);
+            const size_t name_len = strlen(filename);
+
+            char *path = malloc(dir_len + name_len + 2); // extra / and 0
+            if (!path) {
+                log_error("out of memory");
+                exit(1);
+            }
+
+            memcpy(path, directory_name, dir_len);
+            path[dir_len] = '/';
+            memcpy(path + dir_len + 1, filename, name_len + 1); // +1 to copy the null-terminator
+
+            wf->path = path;
+        }
         log_debug("Registered file %s/%s", directory_name, filename);
     } else {
         log_error("Watching too many files");
@@ -102,7 +129,7 @@ static void handle_events() {
                         debug_dir_name = it.directory_name;
 
                         if ((event->mask & IN_ISDIR) == 0 && event->len > 0 && strcmp(it.filename, event->name) == 0) {
-                            it.callback(it.directory_name, it.filename);
+                            it.callback(it.path);
                             break;
                         }
                     }

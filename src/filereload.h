@@ -1,7 +1,3 @@
-//
-// Created by robert on 1/3/19.
-//
-
 #ifndef MINE_C_FILERELOAD_H
 #define MINE_C_FILERELOAD_H
 
@@ -14,6 +10,6 @@ void init_filereload();
 void close_filereload();
 
 void listen_for_file_changes(const char *directory_name, const char *filename,
-                             void (*callback)(const char *directory_name, const char *filename));
+                             void (*callback)(char *path));
 
 int update_filereload();

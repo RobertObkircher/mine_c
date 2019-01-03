@@ -3,8 +3,11 @@
 #include <mathc.h>
 #include <GLFW/glfw3.h>
 #include <log.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "filereload.h"
+#include "shader.h"
 
 static void gl_error_callback(const int error, const char *description) {
     fprintf(stderr, "gl_error_callback: %d, %s\n", error, description);
@@ -20,33 +23,30 @@ static const Vertex vertices[] = {
         {0.9f,  -0.6f, 0.0f, 0.0f, 0.0f, 1.0f},
 };
 
-static const char *vertex_shader_text =
-        "uniform mat4 MVP;\n"
-        "attribute vec3 vCol;\n"
-        "attribute vec3 vPos;\n"
-        "varying vec3 color;\n"
-        "void main()\n"
-        "{\n"
-        "    gl_Position = MVP * vec4(vPos, 1.0);\n"
-        "    color = vCol;\n"
-        "}\n";
+static GLuint shader1 = 0;
+static GLuint mvp_location;
 
-static const char *fragment_shader_text =
-        "varying vec3 color;\n"
-        "void main()\n"
-        "{\n"
-        "    gl_FragColor = vec4(color, 1.0);\n"
-        "}\n";
+static void shader1_callback(char *path) {
+    shader1 = compile_shaders_and_link_program(shader1, path);
 
-void fr_callback(const char *directory_name, const char *filename) {
-    log_info("fr_callback: %s/%s", directory_name, filename);
+    mvp_location = glGetUniformLocation(shader1, "MVP");
+
+    // TODO this doesn't work when reloading
+    GLint vpos_location = glGetAttribLocation(shader1, "vPos");
+    GLint vcol_location = glGetAttribLocation(shader1, "vCol");
+
+    glEnableVertexAttribArray((GLuint) vpos_location);
+    glVertexAttribPointer((GLuint) vpos_location, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(float) * 6, (void *) 0);
+
+    glEnableVertexAttribArray((GLuint) vcol_location);
+    glVertexAttribPointer((GLuint) vcol_location, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(float) * 6, (void *) (sizeof(float) * 3));
 }
+
 
 int main(int argc, char *argv[]) {
     init_filereload();
-    listen_for_file_changes("dependencies", "a", fr_callback);
-    listen_for_file_changes("dependencies", "b", fr_callback);
-    listen_for_file_changes("CMakeFiles", "a", fr_callback);
 
     glfwSetErrorCallback(gl_error_callback);
 
@@ -72,30 +72,8 @@ int main(int argc, char *argv[]) {
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
-    glCompileShader(vertex_shader);
-
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
-    glCompileShader(fragment_shader);
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    GLint mvp_location = glGetUniformLocation(program, "MVP");
-    GLint vpos_location = glGetAttribLocation(program, "vPos");
-    GLint vcol_location = glGetAttribLocation(program, "vCol");
-
-    glEnableVertexAttribArray((GLuint) vpos_location);
-    glVertexAttribPointer((GLuint) vpos_location, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(float) * 6, (void *) 0);
-
-    glEnableVertexAttribArray((GLuint) vcol_location);
-    glVertexAttribPointer((GLuint) vcol_location, 3, GL_FLOAT, GL_FALSE,
-                          sizeof(float) * 6, (void *) (sizeof(float) * 3));
+    listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
+    shader1_callback("assets/shader1.glsl"); // TODO option to invoke callback immediately
 
     while (!glfwWindowShouldClose(window)) {
         int width, height;
@@ -116,7 +94,7 @@ int main(int argc, char *argv[]) {
         float mvp[MAT4_SIZE];
         mat4_multiply(mvp, p, m);
 
-        glUseProgram(program);
+        glUseProgram(shader1);
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *) mvp);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -127,6 +105,7 @@ int main(int argc, char *argv[]) {
         glfwPollEvents();
     }
 
+    delete_shader_programs();
     close_filereload();
     glfwTerminate();
     return 0;

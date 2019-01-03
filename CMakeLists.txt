@@ -8,6 +8,7 @@ add_subdirectory(dependencies)
 add_executable(mine_c
         src/main.c
         src/filereload.c src/filereload.h
+        src/shader.c src/shader.h
 )
 
 target_link_libraries(mine_c
@@ -17,5 +18,5 @@ target_link_libraries(mine_c
         mathc
         dl
         logc
-)
+        )
 
