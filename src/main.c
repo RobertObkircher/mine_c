@@ -4,6 +4,8 @@
 #include <GLFW/glfw3.h>
 #include <log.h>
 
+#include "filereload.h"
+
 static void gl_error_callback(const int error, const char *description) {
     fprintf(stderr, "gl_error_callback: %d, %s\n", error, description);
 }
@@ -36,7 +38,16 @@ static const char *fragment_shader_text =
         "    gl_FragColor = vec4(color, 1.0);\n"
         "}\n";
 
-int main(void) {
+void fr_callback(const char *directory_name, const char *filename) {
+    log_info("fr_callback: %s/%s", directory_name, filename);
+}
+
+int main(int argc, char *argv[]) {
+    init_filereload();
+    listen_for_file_changes("dependencies", "a", fr_callback);
+    listen_for_file_changes("dependencies", "b", fr_callback);
+    listen_for_file_changes("CMakeFiles", "a", fr_callback);
+
     glfwSetErrorCallback(gl_error_callback);
 
     log_trace("asdf");
@@ -111,9 +122,13 @@ int main(void) {
 
         glfwSwapBuffers(window);
 
+        update_filereload();
+
         glfwPollEvents();
     }
 
+    close_filereload();
     glfwTerminate();
     return 0;
 }
+

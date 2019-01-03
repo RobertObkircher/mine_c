@@ -7,6 +7,7 @@ add_subdirectory(dependencies)
 
 add_executable(mine_c
         src/main.c
+        src/filereload.c src/filereload.h
 )
 
 target_link_libraries(mine_c
