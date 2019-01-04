@@ -73,7 +73,6 @@ int main(int argc, char *argv[]) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
-    shader1_callback("assets/shader1.glsl"); // TODO option to invoke callback immediately
 
     while (!glfwWindowShouldClose(window)) {
         int width, height;

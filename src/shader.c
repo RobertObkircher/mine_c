@@ -13,6 +13,7 @@ void delete_shader_programs() {
         glDeleteProgram(programs[--program_count]);
 }
 
+// TODO move to fileutil
 static char *read_file_contents(char *path) {
     FILE *file = fopen(path, "r");
     if (!file || fseek(file, 0, SEEK_END))

@@ -53,30 +53,41 @@ void close_filereload() {
 
 void listen_for_file_changes(const char *directory_name, const char *filename,
                              void (*callback)(char *path)) {
-    if (watched_files_count < FILERELOAD_MAX_WATCHED_FILES) {
+
+    /* concatenate directory_name and filename */
+    // TODO move to fileutil
+
+    const size_t dir_len = strlen(directory_name);
+    const size_t name_len = strlen(filename);
+
+    char *path = malloc_or_exit(dir_len + name_len + 2); // extra / and 0
+
+    memcpy(path, directory_name, dir_len);
+    path[dir_len] = '/';
+    memcpy(path + dir_len + 1, filename, name_len + 1); // +1 to copy the null-terminator
+
+    /* watch for file changes */
+
+    int can_watch = watched_files_count < FILERELOAD_MAX_WATCHED_FILES;
+
+    if (can_watch) {
         WatchedFile *wf = &watched_files[watched_files_count++];
         wf->directory_name = directory_name;
         wf->filename = filename;
+        wf->path = path;
         wf->watch_descriptor = inotify_add_watch(fd, directory_name, IN_CREATE | IN_MODIFY | IN_MOVED_TO);
         wf->callback = callback;
-        {
-            /* concatenate directory_name and filename */
-
-            const size_t dir_len = strlen(directory_name);
-            const size_t name_len = strlen(filename);
-
-            char *path = malloc_or_exit(dir_len + name_len + 2); // extra / and 0
-
-            memcpy(path, directory_name, dir_len);
-            path[dir_len] = '/';
-            memcpy(path + dir_len + 1, filename, name_len + 1); // +1 to copy the null-terminator
-
-            wf->path = path;
-        }
         log_debug("Registered file %s/%s", directory_name, filename);
     } else {
         log_error("Watching too many files");
     }
+
+    /* invoke the callback */
+
+    callback(path);
+
+    if (!can_watch)
+        free(path);
 }
 
 static void handle_events() {
