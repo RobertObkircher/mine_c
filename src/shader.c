@@ -1,4 +1,5 @@
 #include "shader.h"
+#include "allocorexit.h"
 #include <log.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,11 +21,9 @@ static char *read_file_contents(char *path) {
     size_t length = (size_t) ftell(file);
     rewind(file);
 
-    char *buffer = malloc(length + 1);
-    if (buffer) {
-        size_t read = fread(buffer, 1, length, file);
-        buffer[read] = 0;
-    }
+    char *buffer = malloc_or_exit(length + 1);
+    size_t read = fread(buffer, 1, length, file);
+    buffer[read] = 0;
 
     fclose(file);
 
@@ -37,7 +36,7 @@ GLuint compile_shaders_and_link_program(GLuint id, char *filepath) {
     char *shader_text = read_file_contents(filepath);
     if (!shader_text) {
         log_error("unable to read file: %s", filepath);
-        exit(1);
+        exit(1); // TODO don't exit
     }
     size_t shader_text_len = strlen(shader_text);
 

@@ -1,4 +1,5 @@
 #include "filereload.h"
+#include "allocorexit.h"
 
 #include <log.h>
 
@@ -64,11 +65,7 @@ void listen_for_file_changes(const char *directory_name, const char *filename,
             const size_t dir_len = strlen(directory_name);
             const size_t name_len = strlen(filename);
 
-            char *path = malloc(dir_len + name_len + 2); // extra / and 0
-            if (!path) {
-                log_error("out of memory");
-                exit(1);
-            }
+            char *path = malloc_or_exit(dir_len + name_len + 2); // extra / and 0
 
             memcpy(path, directory_name, dir_len);
             path[dir_len] = '/';

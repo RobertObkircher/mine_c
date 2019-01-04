@@ -9,7 +9,7 @@ add_executable(mine_c
         src/main.c
         src/filereload.c src/filereload.h
         src/shader.c src/shader.h
-)
+        src/allocorexit.c src/allocorexit.h)
 
 target_link_libraries(mine_c
         glfw
@@ -17,6 +17,5 @@ target_link_libraries(mine_c
         glad
         mathc
         dl
-        logc
-        )
+        logc)
 
