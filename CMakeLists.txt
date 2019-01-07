@@ -9,7 +9,8 @@ add_executable(mine_c
         src/main.c
         src/filereload.c src/filereload.h
         src/shader.c src/shader.h
-        src/allocorexit.c src/allocorexit.h)
+        src/allocorexit.c src/allocorexit.h
+        src/dynarray.c src/dynarray.h)
 
 target_link_libraries(mine_c
         glfw
