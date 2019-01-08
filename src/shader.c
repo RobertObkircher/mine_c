@@ -39,16 +39,15 @@ GLuint compile_shaders_and_link_program(GLuint id, char *filepath) {
         log_error("unable to read file: %s", filepath);
         exit(1); // TODO don't exit
     }
-    size_t shader_text_len = strlen(shader_text);
 
     // TODO error checks:
 
-    char *vertex_shader_source[] = {"#define COMPILING_VERTEX_SHADER\n", shader_text};
+    const char *vertex_shader_source[] = {"#define COMPILING_VERTEX_SHADER\n", shader_text};
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 2, vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
 
-    char *fragment_shader_source[] = {"#define COMPILING_FRAGMENT_SHADER\n", shader_text};
+    const char *fragment_shader_source[] = {"#define COMPILING_FRAGMENT_SHADER\n", shader_text};
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment_shader, 2, fragment_shader_source, NULL);
     glCompileShader(fragment_shader);

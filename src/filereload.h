@@ -10,6 +10,6 @@ void close_filereload();
 void listen_for_file_changes(const char *directory_name, const char *filename,
                              void (*callback)(char *path));
 
-int update_filereload();
+void update_filereload();
 
 #endif //MINE_C_FILERELOAD_H

@@ -20,3 +20,4 @@ target_link_libraries(mine_c
         dl
         logc)
 
+target_compile_options(mine_c PRIVATE -Wall -Wextra -pedantic )

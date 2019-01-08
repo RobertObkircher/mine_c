@@ -17,7 +17,7 @@ typedef struct {
     char *path;
     int watch_descriptor;
 
-    void (*callback)(const char *path);
+    void (*callback)(char *path);
 } WatchedFile;
 
 static int fd = -1;
@@ -156,7 +156,7 @@ static void handle_events() {
     }
 }
 
-int update_filereload() {
+void update_filereload() {
     nfds_t nfds = 1;
 
     struct pollfd fds[1];
