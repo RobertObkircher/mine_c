@@ -8,51 +8,34 @@
 
 #include "filereload.h"
 #include "shader.h"
+#include "chunks.h"
 
 static void gl_error_callback(const int error, const char *description) {
     fprintf(stderr, "gl_error_callback: %d, %s\n", error, description);
 }
 
-typedef struct {
-    float x, y, z, r, g, b;
-} Vertex;
-
-static const Vertex vertices[] = {
-        {-0.3f, 0.8f,  0.0f, 1.0f, 0.0f, 0.0f},
-        {-0.7f, -0.3f, 0.0f, 0.0f, 1.0f, 0.0f},
-        {0.9f,  -0.6f, 0.0f, 0.0f, 0.0f, 1.0f},
-};
-
-static GLuint shader1 = 0;
-static GLuint mvp_location;
+GLuint shader1 = 0;
 
 static void shader1_callback(char *path) {
     shader1 = compile_shaders_and_link_program(shader1, path);
-
-    mvp_location = glGetUniformLocation(shader1, "MVP");
-
-    // TODO this doesn't work when reloading
-    GLint vpos_location = glGetAttribLocation(shader1, "vPos");
-    GLint vcol_location = glGetAttribLocation(shader1, "vCol");
-
-    glEnableVertexAttribArray((GLuint) vpos_location);
-    glVertexAttribPointer((GLuint) vpos_location, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(float) * 6, (void *) 0);
-
-    glEnableVertexAttribArray((GLuint) vcol_location);
-    glVertexAttribPointer((GLuint) vcol_location, 3, GL_FLOAT, GL_FALSE,
-                          sizeof(float) * 6, (void *) (sizeof(float) * 3));
 }
 
+// TODO opengl debugging: https://stackoverflow.com/a/43567924
 
-int main(int argc, char *argv[]) {
+int main(void) {
     init_filereload();
 
     glfwSetErrorCallback(gl_error_callback);
 
-    log_trace("asdf");
-    log_debug("asdf");
-    log_warn("asdf");
+    int test_world_size = 5;
+
+    for (int x = 0; x < test_world_size; ++x) {
+        for (int y = 0; y < test_world_size / 2; ++y) {
+            for (int z = 0; z < test_world_size; ++z) {
+                make_visible_chunk(CHUNK_SIZE * x, CHUNK_SIZE * y, CHUNK_SIZE * z);
+            }
+        }
+    }
 
     if (!glfwInit())
         return -1;
@@ -67,11 +50,6 @@ int main(int argc, char *argv[]) {
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(0);
 
-    GLuint vertexBuffer;
-    glGenBuffers(1, &vertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
     listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
 
     while (!glfwWindowShouldClose(window)) {
@@ -83,19 +61,28 @@ int main(int argc, char *argv[]) {
 
         glClear(GL_COLOR_BUFFER_BIT);
 
-        float m[MAT4_SIZE];
-        mat4_identity(m);
-        mat4_rotation_z(m, (mfloat_t) (glfwGetTime()));
+        float projection_view[MAT4_SIZE];
+        {
+            float perspective[MAT4_SIZE];
+            mat4_perspective(perspective, 3.1415f / 3.0f, ratio, 0.1, 100);
 
-        float p[MAT4_SIZE];
-        mat4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
+            float position[VEC3_SIZE];
+            float target[VEC3_SIZE];
+            float up[VEC3_SIZE];
+            float view[MAT4_SIZE];
 
-        float mvp[MAT4_SIZE];
-        mat4_multiply(mvp, p, m);
+            float center = test_world_size * CHUNK_SIZE / 2.0f;
+            mat4_look_at(view,
+                         vec3(position, center, center, center),
+                         vec3(target, center, center / 2, center / 2),
+                         vec3(up, 0.0, 1.0, 0.0));
+
+            mat4_multiply(projection_view, perspective, view);
+        }
 
         glUseProgram(shader1);
-        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *) mvp);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        render_chunks(projection_view);
 
         glfwSwapBuffers(window);
 
