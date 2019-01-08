@@ -31,6 +31,19 @@ static int visible_chunks_size;
 static Blocks *visible_chunks_blocks;
 static ChunkInfo *visible_chunks_infos;
 
+/*
+static int invisible_chunks_count;
+static Blocks *invisible_chunks_blocks;
+
+typedef struct {
+    unsigned int is_visible : 1;
+    unsigned int is_compressed : 1;
+    unsigned int pos : 30;
+} ChunkPointer;
+
+static ChunkPointer chunk_index[HORIZONTAL_CHUNKS][HORIZONTAL_CHUNKS][VERTICAL_CHUNKS];
+*/
+
 void make_visible_chunk(int x, int y, int z) {
     realloc_if_too_small((void **) &visible_chunks_blocks, sizeof(Blocks), visible_chunks_size,
                          visible_chunks_count + 1);
@@ -38,8 +51,18 @@ void make_visible_chunk(int x, int y, int z) {
                                                visible_chunks_count + 1);
 
     Blocks blocks = empty_blocks;
-    for (int i = 0; i < 10; ++i) {
-        blocks.data[(rand() % CHUNK_SIZE)][(rand() % CHUNK_SIZE)][(rand() % CHUNK_SIZE)] = 1;
+    for (int ix = 0; ix < CHUNK_SIZE; ++ix) {
+        for (int iy = 0; iy < CHUNK_SIZE; ++iy) {
+            for (int iz = 0; iz < CHUNK_SIZE; ++iz) {
+                if (y + iy < CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
+                    blocks.data[ix][iy][iz] = 1;
+                } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
+                    blocks.data[ix][iy][iz] = rand() & 1;
+                } else {
+
+                }
+            }
+        }
     }
 
     visible_chunks_blocks[visible_chunks_count] = blocks;
@@ -56,7 +79,7 @@ static int is_culled(ChunkInfo *info) {
 //
 
 typedef struct {
-    float x, y, z; // , u, v; TODO uv
+    float x, y, z, u, v;
 //    float nx, ny, nz; // TODO normals
 } ChunkVertex;
 
@@ -92,6 +115,12 @@ static void add_quad(ChunkVertex v0, ChunkVertex v1, ChunkVertex v2, ChunkVertex
     index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 2;
     index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 3;
 
+    v0.u = v1.u = 0;
+    v2.u = v3.u = 1;
+
+    v0.v = v3.v = 1;
+    v1.v = v2.v = 0;
+
     vertex_buffer[vertex_buffer_elements++] = v0;
     vertex_buffer[vertex_buffer_elements++] = v1;
     vertex_buffer[vertex_buffer_elements++] = v2;
@@ -100,6 +129,7 @@ static void add_quad(ChunkVertex v0, ChunkVertex v1, ChunkVertex v2, ChunkVertex
 
 
 extern GLuint shader1; // TODO remove
+extern GLuint the_texture; // TODO remove
 
 static void update_mesh(int index, ChunkInfo *info) {
     // TODO limit update time per frame
@@ -119,7 +149,7 @@ static void update_mesh(int index, ChunkInfo *info) {
 
                 ChunkVertex v0, v1, v2, v3;
 
-                if (current ) {
+                if (current) {
                     // This block is opaque, so the other blocks are invisible
                     if (!next_x) {
                         v0.x = v1.x = v2.x = v3.x = x + 0.5f;
@@ -216,6 +246,10 @@ static void update_mesh(int index, ChunkInfo *info) {
     GLint vpos_location = glGetAttribLocation(shader1, "vPos");
     glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), 0);
     glEnableVertexAttribArray(vpos_location);
+
+    GLint uv_location = glGetAttribLocation(shader1, "vUV");
+    glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(uv_location);
 
     if (!info->index_buffer) {
         glGenBuffers(1, &info->index_buffer);

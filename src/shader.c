@@ -1,23 +1,26 @@
 #include "shader.h"
 #include "allocorexit.h"
+#include "dynarray.h"
 #include <log.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_SHADER_PROGRAMS 100
-static GLuint programs[MAX_SHADER_PROGRAMS];
-static int program_count = 0;
+static GLuint *programs;
+static size_t programs_count;
+static size_t programs_size;
 
 void delete_shader_programs() {
-    while (program_count > 0)
-        glDeleteProgram(programs[--program_count]);
+    while (programs_count > 0)
+        glDeleteProgram(programs[--programs_count]);
 }
 
 // TODO move to fileutil
 static char *read_file_contents(char *path) {
     FILE *file = fopen(path, "r");
-    if (!file || fseek(file, 0, SEEK_END))
+    if (!file || fseek(file, 0, SEEK_END)) {
+        log_error("Couldn't read file %s", path);
         return NULL;
+    }
 
     size_t length = (size_t) ftell(file);
     rewind(file);
@@ -31,38 +34,61 @@ static char *read_file_contents(char *path) {
     return buffer;
 }
 
+
+static GLuint create_and_compile_shader(const char *sources[], int count, GLenum type) {
+    GLuint shader = glCreateShader(type);
+    if (!shader || shader == GL_INVALID_ENUM) {
+        log_error("unable to create shader");
+        return 0;
+    }
+    glShaderSource(shader, count, sources, NULL);
+    glCompileShader(shader);
+    GLint compile_status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
+    if (compile_status != GL_TRUE) {
+        int length = 1024;
+        char info_log[length];
+        glGetShaderInfoLog(shader, length, &length, info_log);
+        log_error("vertex shader info log: %s", info_log);
+        glDeleteShader(shader);
+        return 0;
+    }
+    return shader;
+}
+
+
 GLuint compile_shaders_and_link_program(GLuint id, char *filepath) {
-    log_info("Loading: %s", filepath);
+    log_info("Loading shader: %s", filepath);
 
     char *shader_text = read_file_contents(filepath);
-    if (!shader_text) {
-        log_error("unable to read file: %s", filepath);
-        exit(1); // TODO don't exit
+    if (!shader_text)
+        return 0;
+
+    const char *vertex_shader_sources[2] = {"#define COMPILING_VERTEX_SHADER\n", shader_text};
+    GLuint vertex_shader = create_and_compile_shader(vertex_shader_sources, 2, GL_VERTEX_SHADER);
+    if (!vertex_shader)
+        return 0;
+
+    const char *fragment_shader_sources[2] = {"#define COMPILING_FRAGMENT_SHADER\n", shader_text};
+    GLuint fragment_shader = create_and_compile_shader(fragment_shader_sources, 2, GL_FRAGMENT_SHADER);
+    if (!fragment_shader) {
+        glDeleteShader(vertex_shader);
+        return 0;
     }
-
-    // TODO error checks:
-
-    const char *vertex_shader_source[] = {"#define COMPILING_VERTEX_SHADER\n", shader_text};
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 2, vertex_shader_source, NULL);
-    glCompileShader(vertex_shader);
-
-    const char *fragment_shader_source[] = {"#define COMPILING_FRAGMENT_SHADER\n", shader_text};
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 2, fragment_shader_source, NULL);
-    glCompileShader(fragment_shader);
 
     GLuint program = id;
     if (!program) {
-        if (program_count >= MAX_SHADER_PROGRAMS) {
-            log_error("too many shaders");
-            exit(1);
+        program = glCreateProgram();
+        if (!program) {
+            glDeleteShader(vertex_shader);
+            glDeleteShader(fragment_shader);
+            log_error("unable to create program");
+            return 0;
         }
-        program = glCreateProgram(); // TODO error check
-        programs[program_count++] = program;
+        programs_size = realloc_if_too_small((void **) &programs, sizeof(GLuint), programs_size, ++programs_count);
+        programs[programs_count - 1] = program;
     }
 
-    // TODO error checks:
     glAttachShader(program, vertex_shader);
     glAttachShader(program, fragment_shader);
     glLinkProgram(program);
@@ -71,6 +97,18 @@ GLuint compile_shaders_and_link_program(GLuint id, char *filepath) {
     glDeleteShader(vertex_shader);
     glDetachShader(program, fragment_shader);
     glDeleteShader(fragment_shader);
+
+    int program_link_status;
+    glGetProgramiv(program, GL_LINK_STATUS, &program_link_status);
+    if (program_link_status != GL_TRUE) {
+        int length = 1024;
+        char info_log[length];
+        glad_glGetProgramInfoLog(program, length, &length, info_log);
+        if (!id)
+            glDeleteProgram(program);
+        log_error("program info log: %s", info_log);
+        return 0;
+    }
 
     free(shader_text);
     return program;

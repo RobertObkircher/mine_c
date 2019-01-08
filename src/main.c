@@ -9,15 +9,33 @@
 #include "filereload.h"
 #include "shader.h"
 #include "chunks.h"
+#include "textures.h"
 
 static void gl_error_callback(const int error, const char *description) {
     fprintf(stderr, "gl_error_callback: %d, %s\n", error, description);
 }
 
 GLuint shader1 = 0;
+GLuint the_texture = 0;
 
 static void shader1_callback(char *path) {
-    shader1 = compile_shaders_and_link_program(shader1, path);
+    GLuint new_shader = compile_shaders_and_link_program(shader1, path);
+    if (new_shader)
+        shader1 = new_shader;
+}
+
+static void load_the_texture(char *path) {
+    GLuint new_texture = load_png_texture_from_path(path);
+    if (new_texture) {
+        GLuint old_texture = the_texture;
+        the_texture = new_texture;
+        if (old_texture)
+            glDeleteTextures(1, &old_texture);
+
+        log_info("Texture reload successful: %s", path);
+    } else {
+        log_error("Texture reload failed: %s", path);
+    }
 }
 
 // TODO opengl debugging: https://stackoverflow.com/a/43567924
@@ -27,11 +45,9 @@ int main(void) {
 
     glfwSetErrorCallback(gl_error_callback);
 
-    int test_world_size = 5;
-
-    for (int x = 0; x < test_world_size; ++x) {
-        for (int y = 0; y < test_world_size / 2; ++y) {
-            for (int z = 0; z < test_world_size; ++z) {
+    for (int x = 0; x < HORIZONTAL_CHUNKS; ++x) {
+        for (int y = 0; y < VERTICAL_CHUNKS; ++y) {
+            for (int z = 0; z < HORIZONTAL_CHUNKS; ++z) {
                 make_visible_chunk(CHUNK_SIZE * x, CHUNK_SIZE * y, CHUNK_SIZE * z);
             }
         }
@@ -51,6 +67,7 @@ int main(void) {
     glfwSwapInterval(0);
 
     listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
+    listen_for_file_changes("assets", "image.png", load_the_texture);
 
     while (!glfwWindowShouldClose(window)) {
         int width, height;
@@ -71,7 +88,7 @@ int main(void) {
             float up[VEC3_SIZE];
             float view[MAT4_SIZE];
 
-            float center = test_world_size * CHUNK_SIZE / 2.0f;
+            float center = HORIZONTAL_CHUNKS * CHUNK_SIZE / 2.0f;
             mat4_look_at(view,
                          vec3(position, center, center, center),
                          vec3(target, center, center / 2, center / 2),

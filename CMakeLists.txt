@@ -11,7 +11,8 @@ add_executable(mine_c
         src/shader.c src/shader.h
         src/allocorexit.c src/allocorexit.h
         src/dynarray.c src/dynarray.h
-        src/chunks.c src/chunks.h)
+        src/chunks.c src/chunks.h
+        src/textures.c src/textures.h)
 
 target_link_libraries(mine_c
         glfw
@@ -19,6 +20,7 @@ target_link_libraries(mine_c
         glad
         mathc
         dl
-        logc)
+        logc
+        png)
 
 target_compile_options(mine_c PRIVATE -Wall -Wextra -pedantic )
