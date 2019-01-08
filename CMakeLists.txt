@@ -12,7 +12,8 @@ add_executable(mine_c
         src/allocorexit.c src/allocorexit.h
         src/dynarray.c src/dynarray.h
         src/chunks.c src/chunks.h
-        src/textures.c src/textures.h)
+        src/textures.c src/textures.h
+        src/files.c src/files.h)
 
 target_link_libraries(mine_c
         glfw

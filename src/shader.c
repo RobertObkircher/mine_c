@@ -1,6 +1,7 @@
 #include "shader.h"
 #include "allocorexit.h"
 #include "dynarray.h"
+#include "files.h"
 #include <log.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,27 +14,6 @@ void delete_shader_programs() {
     while (programs_count > 0)
         glDeleteProgram(programs[--programs_count]);
 }
-
-// TODO move to fileutil
-static char *read_file_contents(char *path) {
-    FILE *file = fopen(path, "r");
-    if (!file || fseek(file, 0, SEEK_END)) {
-        log_error("Couldn't read file %s", path);
-        return NULL;
-    }
-
-    size_t length = (size_t) ftell(file);
-    rewind(file);
-
-    char *buffer = malloc_or_exit(length + 1);
-    size_t read = fread(buffer, 1, length, file);
-    buffer[read] = 0;
-
-    fclose(file);
-
-    return buffer;
-}
-
 
 static GLuint create_and_compile_shader(const char *sources[], int count, GLenum type) {
     GLuint shader = glCreateShader(type);
