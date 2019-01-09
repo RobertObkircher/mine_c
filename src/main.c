@@ -40,6 +40,11 @@ static void load_the_texture(char *path) {
 
 // TODO opengl debugging: https://stackoverflow.com/a/43567924
 
+static struct {
+    float position[VEC3_SIZE];
+    float direction[VEC3_SIZE];
+} player;
+
 int main(void) {
     init_filereload();
 
@@ -69,7 +74,17 @@ int main(void) {
     listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
     listen_for_file_changes("assets", "image.png", load_the_texture);
 
+    double last = glfwGetTime();
+
+    float center = HORIZONTAL_CHUNKS * CHUNK_SIZE / 2.0f;
+    vec3(player.direction, 0, 0, -1);
+    vec3(player.position, center, center, center);
+
     while (!glfwWindowShouldClose(window)) {
+        double t = glfwGetTime();
+        double dt = t - last;
+        last = t;
+
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
         float ratio = (float) width / height;
@@ -83,16 +98,14 @@ int main(void) {
             float perspective[MAT4_SIZE];
             mat4_perspective(perspective, 3.1415f / 3.0f, ratio, 0.1, 100);
 
-            float position[VEC3_SIZE];
-            float target[VEC3_SIZE];
             float up[VEC3_SIZE];
             float view[MAT4_SIZE];
 
-            float center = HORIZONTAL_CHUNKS * CHUNK_SIZE / 2.0f;
-            mat4_look_at(view,
-                         vec3(position, center, center, center),
-                         vec3(target, center, center / 2, center / 2),
-                         vec3(up, 0.0, 1.0, 0.0));
+            float target[VEC3_SIZE];
+            vec3_assign(target, player.position);
+            vec3_add(target, target, player.direction);
+
+            mat4_look_at(view, player.position, target, vec3(up, 0.0, 1.0, 0.0));
 
             mat4_multiply(projection_view, perspective, view);
         }
@@ -106,6 +119,30 @@ int main(void) {
         update_filereload();
 
         glfwPollEvents();
+
+        float player_speed = (float) dt;
+        if (glfwGetKey(window, GLFW_KEY_W)) {
+            float delta[VEC3_SIZE];
+            vec3_multiply_f(delta, player.direction, player_speed * 2);
+            vec3_add(player.position, player.position, delta);
+        }
+        if (glfwGetKey(window, GLFW_KEY_S)) {
+            float delta[VEC3_SIZE];
+            vec3_multiply_f(delta, player.direction, -player_speed);
+            vec3_add(player.position, player.position, delta);
+        }
+        if (glfwGetKey(window, GLFW_KEY_A)) {
+            float rotation[MAT3_SIZE];
+            mat3_identity(rotation);
+            mat3_rotation_y(rotation, player_speed);
+            vec3_multiply_mat3(player.direction, player.direction, rotation);
+        }
+        if (glfwGetKey(window, GLFW_KEY_D)) {
+            float rotation[MAT3_SIZE];
+            mat3_identity(rotation);
+            mat3_rotation_y(rotation, -player_speed);
+            vec3_multiply_mat3(player.direction, player.direction, rotation);
+        }
     }
 
     delete_shader_programs();
