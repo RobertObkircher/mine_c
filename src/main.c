@@ -71,6 +71,10 @@ int main(void) {
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(0);
 
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
     listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
     listen_for_file_changes("assets", "image.png", load_the_texture);
 
@@ -91,7 +95,7 @@ int main(void) {
 
         glViewport(0, 0, width, height);
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float projection_view[MAT4_SIZE];
         {
