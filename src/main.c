@@ -125,27 +125,32 @@ int main(void) {
         glfwPollEvents();
 
         float player_speed = (float) dt;
-        if (glfwGetKey(window, GLFW_KEY_W)) {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
             float delta[VEC3_SIZE];
             vec3_multiply_f(delta, player.direction, player_speed * 2);
             vec3_add(player.position, player.position, delta);
         }
-        if (glfwGetKey(window, GLFW_KEY_S)) {
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
             float delta[VEC3_SIZE];
             vec3_multiply_f(delta, player.direction, -player_speed);
             vec3_add(player.position, player.position, delta);
         }
-        if (glfwGetKey(window, GLFW_KEY_A)) {
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
             float rotation[MAT3_SIZE];
             mat3_identity(rotation);
             mat3_rotation_y(rotation, player_speed);
             vec3_multiply_mat3(player.direction, player.direction, rotation);
         }
-        if (glfwGetKey(window, GLFW_KEY_D)) {
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
             float rotation[MAT3_SIZE];
             mat3_identity(rotation);
             mat3_rotation_y(rotation, -player_speed);
             vec3_multiply_mat3(player.direction, player.direction, rotation);
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            float delta[VEC3_SIZE];
+            float dir = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1 : 1;
+            vec3_add(player.position, player.position, vec3(delta, 0, 20 * player_speed * dir, 0));
         }
     }
 
