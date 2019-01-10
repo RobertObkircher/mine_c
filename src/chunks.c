@@ -58,8 +58,8 @@ void make_visible_chunk(int x, int y, int z) {
                     blocks.data[ix][iy][iz] = 1;
                 } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
                     blocks.data[ix][iy][iz] = rand() & 1;
-                } else {
-
+                } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2 + 1) {
+                    blocks.data[ix][iy][iz] = rand() & 1;
                 }
             }
         }
@@ -163,13 +163,13 @@ static void update_mesh(int index, ChunkInfo *info) {
                         add_quad(v0, v1, v2, v3);
                     }
                     if (!next_y) {
-                        v0.x = v1.x = x + 0.5f;
-                        v2.x = v3.x = x - 0.5f;
+                        v0.x = v1.x = x - 0.5f;
+                        v2.x = v3.x = x + 0.5f;
 
                         v0.y = v1.y = v2.y = v3.y = y + 0.5f;
 
-                        v0.z = v3.z = z + 0.5f;
-                        v1.z = v2.z = z - 0.5f;
+                        v0.z = v3.z = z - 0.5f;
+                        v1.z = v2.z = z + 0.5f;
 
                         add_quad(v0, v1, v2, v3);
                     }
@@ -179,8 +179,8 @@ static void update_mesh(int index, ChunkInfo *info) {
                         // 1--2
                         // This face is easy to think about
                         // What changes when rotation around x or y?
-                        v0.x = v1.x = x + 0.5f;
-                        v2.x = v3.x = x - 0.5f;
+                        v0.x = v1.x = x - 0.5f;
+                        v2.x = v3.x = x + 0.5f;
 
                         v0.y = v3.y = y + 0.5f;
                         v1.y = v2.y = y - 0.5f;
@@ -206,19 +206,19 @@ static void update_mesh(int index, ChunkInfo *info) {
                         add_quad(v0, v3, v2, v1);
                     }
                     if (next_y) {
-                        v0.x = v1.x = x + 0.5f;
-                        v2.x = v3.x = x - 0.5f;
+                        v0.x = v1.x = x - 0.5f;
+                        v2.x = v3.x = x + 0.5f;
 
                         v0.y = v1.y = v2.y = v3.y = y + 0.5f;
 
-                        v0.z = v3.z = z + 0.5f;
-                        v1.z = v2.z = z - 0.5f;
+                        v0.z = v3.z = z - 0.5f;
+                        v1.z = v2.z = z + 0.5f;
 
                         add_quad(v0, v3, v2, v1);
                     }
                     if (next_z) {
-                        v0.x = v1.x = x + 0.5f;
-                        v2.x = v3.x = x - 0.5f;
+                        v0.x = v1.x = x - 0.5f;
+                        v2.x = v3.x = x + 0.5f;
 
                         v0.y = v3.y = y + 0.5f;
                         v1.y = v2.y = y - 0.5f;
