@@ -67,6 +67,8 @@ int main(void) {
         return -1;
     }
 
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(0);
@@ -98,11 +100,11 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float projection_view[MAT4_SIZE];
+        float up[VEC3_SIZE];
         {
             float perspective[MAT4_SIZE];
             mat4_perspective(perspective, 3.1415f / 3.0f, ratio, 0.1, 100);
 
-            float up[VEC3_SIZE];
             float view[MAT4_SIZE];
 
             float target[VEC3_SIZE];
@@ -151,6 +153,23 @@ int main(void) {
             float delta[VEC3_SIZE];
             float dir = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1 : 1;
             vec3_add(player.position, player.position, vec3(delta, 0, 20 * player_speed * dir, 0));
+        }
+        {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            glfwSetCursorPos(window, 0, 0);
+
+            float rotation[MAT3_SIZE];
+
+            mat3_identity(rotation);
+            mat3_rotation_y(rotation, -player_speed * (float) xpos);
+            vec3_multiply_mat3(player.direction, player.direction, rotation);
+
+            float axis[VEC3_SIZE];
+            vec3_cross(axis, player.direction, up);
+            mat3_identity(rotation);
+            mat3_rotation_axis(rotation, axis, -player_speed * (float) ypos);
+            vec3_multiply_mat3(player.direction, player.direction, rotation);
         }
     }
 
