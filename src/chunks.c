@@ -31,18 +31,19 @@ static int visible_chunks_size;
 static Blocks *visible_chunks_blocks;
 static ChunkInfo *visible_chunks_infos;
 
-/*
-static int invisible_chunks_count;
-static Blocks *invisible_chunks_blocks;
+// TODO invisible chunks
+//static int invisible_chunks_count;
+//static Blocks *invisible_chunks_blocks;
 
 typedef struct {
+    unsigned int is_valid : 1;
     unsigned int is_visible : 1;
     unsigned int is_compressed : 1;
     unsigned int pos : 30;
 } ChunkPointer;
 
-static ChunkPointer chunk_index[HORIZONTAL_CHUNKS][HORIZONTAL_CHUNKS][VERTICAL_CHUNKS];
-*/
+//TODO index offset
+static ChunkPointer chunk_index[HORIZONTAL_CHUNKS][VERTICAL_CHUNKS][HORIZONTAL_CHUNKS];
 
 void make_visible_chunk(int x, int y, int z) {
     realloc_if_too_small((void **) &visible_chunks_blocks, sizeof(Blocks), visible_chunks_size,
@@ -62,6 +63,9 @@ void make_visible_chunk(int x, int y, int z) {
             }
         }
     }
+
+    chunk_index[x / CHUNK_SIZE][y / CHUNK_SIZE][z /
+                                                CHUNK_SIZE] = (ChunkPointer) {.is_valid = 1, .is_visible = 1, .pos = visible_chunks_count};
 
     visible_chunks_blocks[visible_chunks_count] = blocks;
     visible_chunks_infos[visible_chunks_count++] = (ChunkInfo) {.x = x, .y = y, .z = z, .needs_mesh_update = 1};
@@ -167,6 +171,90 @@ static void add_quad(Block block, ChunkVertex v0, ChunkVertex v1, ChunkVertex v2
 extern GLuint shader1; // TODO remove
 extern GLuint the_texture; // TODO remove
 
+void add_block(int x, int y, int z, Block current, Block next_x, Block next_y, Block next_z) {
+    ChunkVertex v0, v1, v2, v3;
+
+    if (current) {
+        // This block is opaque, so the other blocks are invisible
+        if (!next_x) {
+            v0.x = v1.x = v2.x = v3.x = x + 0.5f;
+
+            v0.y = v3.y = y + 0.5f;
+            v1.y = v2.y = y - 0.5f;
+
+            v0.z = v1.z = z + 0.5f;
+            v2.z = v3.z = z - 0.5f;
+
+            add_quad(current, v0, v1, v2, v3);
+        }
+        if (!next_y) {
+            v0.x = v1.x = x - 0.5f;
+            v2.x = v3.x = x + 0.5f;
+
+            v0.y = v1.y = v2.y = v3.y = y + 0.5f;
+
+            v0.z = v3.z = z - 0.5f;
+            v1.z = v2.z = z + 0.5f;
+
+            add_quad(current, v0, v1, v2, v3);
+        }
+        if (!next_z) {
+            // 0--3
+            // |  |
+            // 1--2
+            // This face is easy to think about
+            // What changes when rotation around x or y?
+            v0.x = v1.x = x - 0.5f;
+            v2.x = v3.x = x + 0.5f;
+
+            v0.y = v3.y = y + 0.5f;
+            v1.y = v2.y = y - 0.5f;
+
+            v0.z = v1.z = v2.z = v3.z = z + 0.5f;
+
+            add_quad(current, v0, v1, v2, v3);
+        }
+    } else {
+        // This is an air block, so the other blocks are visible
+        // These are the same faces as above, but the triangles need to be drawn clockwise
+        // This can easily be achieved by swapping v1 and v3.
+        // The inner ifs need to be inverted too
+        if (next_x) {
+            v0.x = v1.x = v2.x = v3.x = x + 0.5f;
+
+            v0.y = v3.y = y + 0.5f;
+            v1.y = v2.y = y - 0.5f;
+
+            v0.z = v1.z = z + 0.5f;
+            v2.z = v3.z = z - 0.5f;
+
+            add_quad(next_x, v0, v3, v2, v1);
+        }
+        if (next_y) {
+            v0.x = v1.x = x - 0.5f;
+            v2.x = v3.x = x + 0.5f;
+
+            v0.y = v1.y = v2.y = v3.y = y + 0.5f;
+
+            v0.z = v3.z = z - 0.5f;
+            v1.z = v2.z = z + 0.5f;
+
+            add_quad(next_y, v0, v3, v2, v1);
+        }
+        if (next_z) {
+            v0.x = v1.x = x - 0.5f;
+            v2.x = v3.x = x + 0.5f;
+
+            v0.y = v3.y = y + 0.5f;
+            v1.y = v2.y = y - 0.5f;
+
+            v0.z = v1.z = v2.z = v3.z = z + 0.5f;
+
+            add_quad(next_z, v0, v3, v2, v1);
+        }
+    }
+}
+
 static void update_mesh(int index, ChunkInfo *info) {
     // TODO limit update time per frame
 
@@ -174,6 +262,10 @@ static void update_mesh(int index, ChunkInfo *info) {
 
     vertex_buffer_elements = 0;
     index_buffer_elements = 0;
+
+    //
+    // Add blocks within the chunk
+    //
 
     for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
         for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
@@ -183,90 +275,79 @@ static void update_mesh(int index, ChunkInfo *info) {
                 Block next_y = blocks->data[x][y + 1][z];
                 Block next_z = blocks->data[x][y][z + 1];
 
-                ChunkVertex v0, v1, v2, v3;
+                add_block(x, y, z, current, next_x, next_y, next_z);
+            }
+        }
+    }
 
-                if (current) {
-                    // This block is opaque, so the other blocks are invisible
-                    if (!next_x) {
-                        v0.x = v1.x = v2.x = v3.x = x + 0.5f;
+    //
+    // Border to next chunk in direction X
+    //
 
-                        v0.y = v3.y = y + 0.5f;
-                        v1.y = v2.y = y - 0.5f;
+    if (info->x / CHUNK_SIZE < HORIZONTAL_CHUNKS - 1) {
+        ChunkPointer next_x_chunk = chunk_index[info->x / CHUNK_SIZE + 1][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE];
+        // TODO maybe consider invisible chunks, so that the mesh doesn't have to be rebuild
+        if (next_x_chunk.is_valid && next_x_chunk.is_visible) {
+            Blocks *next_x_blocks = &visible_chunks_blocks[next_x_chunk.pos];
+            int x = CHUNK_SIZE - 1;
+            for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
+                for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
+                    Block current = blocks->data[x][y][z];
+                    Block next_x = next_x_blocks->data[0][y][z];
+                    Block next_y = blocks->data[x][y + 1][z];
+                    Block next_z = blocks->data[x][y][z + 1];
 
-                        v0.z = v1.z = z + 0.5f;
-                        v2.z = v3.z = z - 0.5f;
-
-                        add_quad(current, v0, v1, v2, v3);
-                    }
-                    if (!next_y) {
-                        v0.x = v1.x = x - 0.5f;
-                        v2.x = v3.x = x + 0.5f;
-
-                        v0.y = v1.y = v2.y = v3.y = y + 0.5f;
-
-                        v0.z = v3.z = z - 0.5f;
-                        v1.z = v2.z = z + 0.5f;
-
-                        add_quad(current, v0, v1, v2, v3);
-                    }
-                    if (!next_z) {
-                        // 0--3
-                        // |  |
-                        // 1--2
-                        // This face is easy to think about
-                        // What changes when rotation around x or y?
-                        v0.x = v1.x = x - 0.5f;
-                        v2.x = v3.x = x + 0.5f;
-
-                        v0.y = v3.y = y + 0.5f;
-                        v1.y = v2.y = y - 0.5f;
-
-                        v0.z = v1.z = v2.z = v3.z = z + 0.5f;
-
-                        add_quad(current, v0, v1, v2, v3);
-                    }
-                } else {
-                    // This is an air block, so the other blocks are visible
-                    // These are the same faces as above, but the triangles need to be drawn clockwise
-                    // This can easily be achieved by swapping v1 and v3.
-                    // The inner ifs need to be inverted too
-                    if (next_x) {
-                        v0.x = v1.x = v2.x = v3.x = x + 0.5f;
-
-                        v0.y = v3.y = y + 0.5f;
-                        v1.y = v2.y = y - 0.5f;
-
-                        v0.z = v1.z = z + 0.5f;
-                        v2.z = v3.z = z - 0.5f;
-
-                        add_quad(next_x, v0, v3, v2, v1);
-                    }
-                    if (next_y) {
-                        v0.x = v1.x = x - 0.5f;
-                        v2.x = v3.x = x + 0.5f;
-
-                        v0.y = v1.y = v2.y = v3.y = y + 0.5f;
-
-                        v0.z = v3.z = z - 0.5f;
-                        v1.z = v2.z = z + 0.5f;
-
-                        add_quad(next_y, v0, v3, v2, v1);
-                    }
-                    if (next_z) {
-                        v0.x = v1.x = x - 0.5f;
-                        v2.x = v3.x = x + 0.5f;
-
-                        v0.y = v3.y = y + 0.5f;
-                        v1.y = v2.y = y - 0.5f;
-
-                        v0.z = v1.z = v2.z = v3.z = z + 0.5f;
-
-                        add_quad(next_z, v0, v3, v2, v1);
-                    }
+                    add_block(x, y, z, current, next_x, next_y, next_z);
                 }
             }
         }
     }
+
+    //
+    // Border to next chunk in direction Y
+    //
+
+    if (info->y / CHUNK_SIZE < VERTICAL_CHUNKS - 1) {
+        ChunkPointer next_y_chunk = chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE + 1][info->z / CHUNK_SIZE];
+        if (next_y_chunk.is_valid && next_y_chunk.is_visible) {
+            Blocks *next_y_blocks = &visible_chunks_blocks[next_y_chunk.pos];
+            int y = CHUNK_SIZE - 1;
+            for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
+                for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
+                    Block current = blocks->data[x][y][z];
+                    Block next_x = blocks->data[x + 1][y][z];
+                    Block next_y = next_y_blocks->data[x][0][z];
+                    Block next_z = blocks->data[x][y][z + 1];
+
+                    add_block(x, y, z, current, next_x, next_y, next_z);
+                }
+            }
+        }
+    }
+
+    //
+    // Border to next chunk in direction Z
+    //
+
+    if (info->z / CHUNK_SIZE < HORIZONTAL_CHUNKS - 1) {
+        ChunkPointer next_z_chunk = chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE +
+                                                                                            1];
+        if (next_z_chunk.is_valid && next_z_chunk.is_visible) {
+            Blocks *next_z_blocks = &visible_chunks_blocks[next_z_chunk.pos];
+            int z = CHUNK_SIZE - 1;
+            for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
+                for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
+                    Block current = blocks->data[x][y][z];
+                    Block next_x = blocks->data[x + 1][y][z];
+                    Block next_y = blocks->data[x][y + 1][z];
+                    Block next_z = next_z_blocks->data[x][y][0];
+
+                    add_block(x, y, z, current, next_x, next_y, next_z);
+                }
+            }
+        }
+    }
+
 
     if (!info->vao) {
         glGenVertexArrays(1, &info->vao);
