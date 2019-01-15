@@ -13,7 +13,8 @@ add_executable(mine_c
         src/dynarray.c src/dynarray.h
         src/chunks.c src/chunks.h
         src/textures.c src/textures.h
-        src/files.c src/files.h)
+        src/files.c src/files.h
+        src/camera.c src/camera.h)
 
 target_link_libraries(mine_c
         glfw

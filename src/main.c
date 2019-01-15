@@ -6,9 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "camera.h"
+#include "chunks.h"
 #include "filereload.h"
 #include "shader.h"
-#include "chunks.h"
 #include "textures.h"
 
 static void gl_error_callback(const int error, const char *description) {
@@ -40,14 +41,8 @@ static void load_the_texture(char *path) {
 
 // TODO opengl debugging: https://stackoverflow.com/a/43567924
 
-static struct {
-    float position[VEC3_SIZE];
-    float direction[VEC3_SIZE];
-} player;
-
 int main(void) {
     init_filereload();
-
     glfwSetErrorCallback(gl_error_callback);
 
     for (int x = 0; x < HORIZONTAL_CHUNKS; ++x) {
@@ -83,8 +78,11 @@ int main(void) {
     double last = glfwGetTime();
 
     float center = HORIZONTAL_CHUNKS * CHUNK_SIZE / 2.0f;
-    vec3(player.direction, 0, 0, -1);
-    vec3(player.position, center, center, center);
+
+    Camera cam = default_camera;
+    cam.position[0] = center;
+    cam.position[1] = center;
+    cam.position[2] = center;
 
     while (!glfwWindowShouldClose(window)) {
         double t = glfwGetTime();
@@ -95,29 +93,17 @@ int main(void) {
         glfwGetFramebufferSize(window, &width, &height);
         float ratio = (float) width / height;
 
+        cam.aspect = ratio;
+        update_camera(&cam);
+
         glViewport(0, 0, width, height);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        float projection_view[MAT4_SIZE];
-        float up[VEC3_SIZE];
-        {
-            float perspective[MAT4_SIZE];
-            mat4_perspective(perspective, 3.1415f / 3.0f, ratio, 0.1, 100);
-
-            float view[MAT4_SIZE];
-
-            float target[VEC3_SIZE];
-            vec3_assign(target, player.position);
-            vec3_add(target, target, player.direction);
-
-            mat4_look_at(view, player.position, target, vec3(up, 0.0, 1.0, 0.0));
-
-            mat4_multiply(projection_view, perspective, view);
-        }
-
         glUseProgram(shader1);
 
+        float projection_view[MAT4_SIZE];
+        mat4_multiply(projection_view, cam.perspective, cam.view);
         render_chunks(projection_view);
 
         glfwSwapBuffers(window);
@@ -128,48 +114,35 @@ int main(void) {
 
         float player_speed = (float) dt;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            float delta[VEC3_SIZE];
-            vec3_multiply_f(delta, player.direction, player_speed * 2);
-            vec3_add(player.position, player.position, delta);
+            move_camera(&cam, cam.forward, 3 * player_speed);
         }
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            float delta[VEC3_SIZE];
-            vec3_multiply_f(delta, player.direction, -player_speed);
-            vec3_add(player.position, player.position, delta);
+            move_camera(&cam, cam.forward, -2 * player_speed);
         }
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            float rotation[MAT3_SIZE];
-            mat3_identity(rotation);
-            mat3_rotation_y(rotation, player_speed);
-            vec3_multiply_mat3(player.direction, player.direction, rotation);
+            rotate_camera(&cam, 0, player_speed);
         }
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            float rotation[MAT3_SIZE];
-            mat3_identity(rotation);
-            mat3_rotation_y(rotation, -player_speed);
-            vec3_multiply_mat3(player.direction, player.direction, rotation);
+            rotate_camera(&cam, 0, -player_speed);
+        }
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+            rotate_camera(&cam, player_speed, 0);
+        }
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+            rotate_camera(&cam, -player_speed, 0);
         }
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            float delta[VEC3_SIZE];
-            float dir = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? -1 : 1;
-            vec3_add(player.position, player.position, vec3(delta, 0, 20 * player_speed * dir, 0));
+            move_camera(&cam, (float[]){0, 1, 0}, 2 * player_speed);
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+            move_camera(&cam, (float[]){0, 1, 0}, -2 * player_speed);
         }
         {
             double xpos, ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
             glfwSetCursorPos(window, 0, 0);
 
-            float rotation[MAT3_SIZE];
-
-            mat3_identity(rotation);
-            mat3_rotation_y(rotation, -player_speed * (float) xpos);
-            vec3_multiply_mat3(player.direction, player.direction, rotation);
-
-            float axis[VEC3_SIZE];
-            vec3_cross(axis, player.direction, up);
-            mat3_identity(rotation);
-            mat3_rotation_axis(rotation, axis, -player_speed * (float) ypos);
-            vec3_multiply_mat3(player.direction, player.direction, rotation);
+            rotate_camera(&cam, -ypos * player_speed, -xpos * player_speed);
         }
     }
 
