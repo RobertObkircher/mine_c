@@ -55,10 +55,8 @@ void make_visible_chunk(int x, int y, int z) {
         for (int iy = 0; iy < CHUNK_SIZE; ++iy) {
             for (int iz = 0; iz < CHUNK_SIZE; ++iz) {
                 if (y + iy < CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
-                    blocks.data[ix][iy][iz] = 1;
+                    blocks.data[ix][iy][iz] = 2;
                 } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
-                    blocks.data[ix][iy][iz] = rand() & 1;
-                } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2 + 1) {
                     blocks.data[ix][iy][iz] = rand() & 1;
                 }
             }
@@ -100,7 +98,51 @@ static ChunkIndex *index_buffer;
  *
  * Indices: 012 023
  */
-static void add_quad(ChunkVertex v0, ChunkVertex v1, ChunkVertex v2, ChunkVertex v3) {
+static void add_quad(Block block, ChunkVertex v0, ChunkVertex v1, ChunkVertex v2, ChunkVertex v3) {
+    //
+    // Apply texture coordinates TODO move somewhere else
+    //
+    int num_tiles = 2;
+    float tile_size = 1.0f / num_tiles;
+
+    v0.u = v1.u = 0;
+    v2.u = v3.u = tile_size;
+
+    v0.v = v3.v = tile_size;
+    v1.v = v2.v = 0;
+
+    int x_offset;
+    int y_offset;
+    switch (block) {
+        case 1: {
+            x_offset = 0;
+            y_offset = 0;
+            break;
+        }
+        case 2: {
+            x_offset = 1;
+            y_offset = 0;
+            break;
+        }
+        default: {
+            x_offset = 1;
+            y_offset = 1;
+        }
+    }
+    v0.u += x_offset * tile_size;
+    v1.u += x_offset * tile_size;
+    v2.u += x_offset * tile_size;
+    v3.u += x_offset * tile_size;
+
+    v0.v += y_offset * tile_size;
+    v1.v += y_offset * tile_size;
+    v2.v += y_offset * tile_size;
+    v3.v += y_offset * tile_size;
+
+    //
+    // Add quad
+    //
+
     // TODO move to update_mesh and increase growth
     index_buffer_size = realloc_if_too_small((void **) &index_buffer, sizeof(ChunkIndex), index_buffer_size,
                                              index_buffer_elements + 6);
@@ -114,12 +156,6 @@ static void add_quad(ChunkVertex v0, ChunkVertex v1, ChunkVertex v2, ChunkVertex
     index_buffer[index_buffer_elements++] = vertex_buffer_elements;
     index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 2;
     index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 3;
-
-    v0.u = v1.u = 0;
-    v2.u = v3.u = 1;
-
-    v0.v = v3.v = 1;
-    v1.v = v2.v = 0;
 
     vertex_buffer[vertex_buffer_elements++] = v0;
     vertex_buffer[vertex_buffer_elements++] = v1;
@@ -160,7 +196,7 @@ static void update_mesh(int index, ChunkInfo *info) {
                         v0.z = v1.z = z + 0.5f;
                         v2.z = v3.z = z - 0.5f;
 
-                        add_quad(v0, v1, v2, v3);
+                        add_quad(current, v0, v1, v2, v3);
                     }
                     if (!next_y) {
                         v0.x = v1.x = x - 0.5f;
@@ -171,7 +207,7 @@ static void update_mesh(int index, ChunkInfo *info) {
                         v0.z = v3.z = z - 0.5f;
                         v1.z = v2.z = z + 0.5f;
 
-                        add_quad(v0, v1, v2, v3);
+                        add_quad(current, v0, v1, v2, v3);
                     }
                     if (!next_z) {
                         // 0--3
@@ -187,7 +223,7 @@ static void update_mesh(int index, ChunkInfo *info) {
 
                         v0.z = v1.z = v2.z = v3.z = z + 0.5f;
 
-                        add_quad(v0, v1, v2, v3);
+                        add_quad(current, v0, v1, v2, v3);
                     }
                 } else {
                     // This is an air block, so the other blocks are visible
@@ -203,7 +239,7 @@ static void update_mesh(int index, ChunkInfo *info) {
                         v0.z = v1.z = z + 0.5f;
                         v2.z = v3.z = z - 0.5f;
 
-                        add_quad(v0, v3, v2, v1);
+                        add_quad(next_x, v0, v3, v2, v1);
                     }
                     if (next_y) {
                         v0.x = v1.x = x - 0.5f;
@@ -214,7 +250,7 @@ static void update_mesh(int index, ChunkInfo *info) {
                         v0.z = v3.z = z - 0.5f;
                         v1.z = v2.z = z + 0.5f;
 
-                        add_quad(v0, v3, v2, v1);
+                        add_quad(next_y, v0, v3, v2, v1);
                     }
                     if (next_z) {
                         v0.x = v1.x = x - 0.5f;
@@ -225,7 +261,7 @@ static void update_mesh(int index, ChunkInfo *info) {
 
                         v0.z = v1.z = v2.z = v3.z = z + 0.5f;
 
-                        add_quad(v0, v3, v2, v1);
+                        add_quad(next_z, v0, v3, v2, v1);
                     }
                 }
             }
