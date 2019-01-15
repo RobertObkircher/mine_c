@@ -24,7 +24,7 @@ typedef struct {
 
 static Camera default_camera = {
         .aspect = 1,
-        .fov_y = 3.1415f / 3.0f,
+        .fov_y = MPI / 2.0f,
         .near = 0.1f,
         .far = 100.0f
 };
