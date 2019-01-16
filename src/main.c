@@ -45,6 +45,7 @@ int main(void) {
     init_filereload();
     glfwSetErrorCallback(gl_error_callback);
 
+    setup_world_generator();
     for (int x = 0; x < HORIZONTAL_CHUNKS; ++x) {
         for (int y = 0; y < VERTICAL_CHUNKS; ++y) {
             for (int z = 0; z < HORIZONTAL_CHUNKS; ++z) {
@@ -163,6 +164,7 @@ int main(void) {
 
     }
 
+    destroy_world_generator();
     delete_shader_programs();
     close_filereload();
     glfwTerminate();

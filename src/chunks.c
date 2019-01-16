@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <mathc.h>
 #include <log.h>
+#include <open-simplex-noise.h>
 
 typedef struct {
     Block data[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
@@ -42,6 +43,14 @@ typedef struct {
 //TODO index offset
 static ChunkPointer chunk_index[HORIZONTAL_CHUNKS][VERTICAL_CHUNKS][HORIZONTAL_CHUNKS];
 
+struct osn_context *osn;
+void setup_world_generator() {
+    open_simplex_noise(123, &osn);
+}
+void destroy_world_generator() {
+    open_simplex_noise_free(osn);
+}
+
 void make_visible_chunk(int x, int y, int z) {
     realloc_if_too_small((void **) &visible_chunks_blocks, sizeof(Blocks), visible_chunks_size,
                          visible_chunks_count + 1);
@@ -52,11 +61,23 @@ void make_visible_chunk(int x, int y, int z) {
     for (int ix = 0; ix < CHUNK_SIZE; ++ix) {
         for (int iy = 0; iy < CHUNK_SIZE; ++iy) {
             for (int iz = 0; iz < CHUNK_SIZE; ++iz) {
-                if (y + iy < CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
+                int block_x = x + ix;
+                int block_y = y + iy;
+                int block_z = z + iz;
+                float level = (float)block_y / (CHUNK_SIZE * VERTICAL_CHUNKS) - 0.5f;
+
+                float density = (float)open_simplex_noise3(osn, block_x,block_y,block_z) - 4 * level;
+
+                if (density > 0.5) {
                     blocks.data[ix][iy][iz] = 2;
-                } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
-                    blocks.data[ix][iy][iz] = rand() & 1;
+                } else if (density > 0.3) {
+                    blocks.data[ix][iy][iz] = 1;
                 }
+//                if (y + iy < CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
+//                    blocks.data[ix][iy][iz] = 2;
+//                } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
+//                    blocks.data[ix][iy][iz] = rand() & 1;
+//                }
             }
         }
     }

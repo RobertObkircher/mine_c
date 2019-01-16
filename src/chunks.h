@@ -8,6 +8,9 @@
 
 typedef unsigned char Block;
 
+void setup_world_generator();
+void destroy_world_generator();
+
 void render_chunks(float projection_view[]);
 
 void make_visible_chunk(int x, int y, int z);
