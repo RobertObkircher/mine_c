@@ -6,8 +6,12 @@
 #define VERTICAL_CHUNKS 3
 #define TOTAL_CHUNKS HORIZONTAL_CHUNKS * HORIZONTAL_CHUNKS * VERTICAL_CHUNKS
 
+typedef unsigned char Block;
+
 void render_chunks(float projection_view[]);
 
 void make_visible_chunk(int x, int y, int z);
+
+Block block_at(unsigned int x, unsigned int y, unsigned int z);
 
 #endif //MINE_C_CHUNKS_H

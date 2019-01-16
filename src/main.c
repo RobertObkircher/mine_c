@@ -84,6 +84,8 @@ int main(void) {
     cam.position[1] = center;
     cam.position[2] = center;
 
+    int fly = 1;
+
     while (!glfwWindowShouldClose(window)) {
         double t = glfwGetTime();
         double dt = t - last;
@@ -132,18 +134,33 @@ int main(void) {
             rotate_camera(&cam, -player_speed, 0);
         }
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            move_camera(&cam, (float[]){0, 1, 0}, 2 * player_speed);
+            move_camera(&cam, (float[]) {0, 1, 0}, 2 * player_speed);
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-            move_camera(&cam, (float[]){0, 1, 0}, -2 * player_speed);
+            move_camera(&cam, (float[]) {0, 1, 0}, -2 * player_speed);
         }
         {
             double xpos, ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
             glfwSetCursorPos(window, 0, 0);
 
-            rotate_camera(&cam, -ypos * player_speed, -xpos * player_speed);
+            rotate_camera(&cam, -(float) ypos * player_speed, -(float) xpos * player_speed);
         }
+
+        if (glfwGetKey(window, GLFW_KEY_F)) {
+            fly = !fly;
+        }
+        if (!fly) {
+            int height = -10;
+            for (unsigned int y = cam.position[1]; y >= 0; --y) {
+                if (block_at(cam.position[0], y, cam.position[2])) {
+                    height = y;
+                    break;
+                }
+            }
+            cam.position[1] = fmaxf(height + 2, cam.position[1] - player_speed);
+        }
+
     }
 
     delete_shader_programs();

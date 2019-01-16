@@ -6,9 +6,6 @@
 #include <mathc.h>
 #include <log.h>
 
-// 0 = air
-typedef unsigned char Block;
-
 typedef struct {
     Block data[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
 } Blocks;
@@ -253,6 +250,24 @@ void add_block(int x, int y, int z, Block current, Block next_x, Block next_y, B
             add_quad(next_z, v0, v3, v2, v1);
         }
     }
+}
+
+Block block_at(unsigned int x, unsigned int y, unsigned int z) {
+    unsigned int chunk_x = x / CHUNK_SIZE;
+    unsigned int chunk_y = y / CHUNK_SIZE;
+    unsigned int chunk_z = z / CHUNK_SIZE;
+
+    if (chunk_x >= 0 && chunk_x < HORIZONTAL_CHUNKS
+        && chunk_y >= 0 && chunk_y < VERTICAL_CHUNKS
+        && chunk_z >= 0 && chunk_z < HORIZONTAL_CHUNKS) {
+
+        ChunkPointer *p = &chunk_index[chunk_x][chunk_y][chunk_z];
+        if (p && p->is_valid && p->is_visible) {
+            Blocks *blocks = &visible_chunks_blocks[p->pos];
+            return blocks->data[x - chunk_x * CHUNK_SIZE][y - chunk_y * CHUNK_SIZE][z - chunk_z * CHUNK_SIZE];
+        }
+    }
+    return 0;
 }
 
 static void update_mesh(int index, ChunkInfo *info) {

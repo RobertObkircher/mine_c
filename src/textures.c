@@ -12,7 +12,7 @@ GLuint load_png_texture_from_path(const char *path) {
 
         png_bytep buffer =  malloc_or_exit(PNG_IMAGE_SIZE(image));
 
-        if (buffer != NULL && png_image_finish_read(&image, NULL, buffer, 0, NULL) != 0) {
+        if (png_image_finish_read(&image, NULL, buffer, 0, NULL) != 0) {
             GLuint texture;
             glGenTextures(1, &texture);
             glBindTexture(GL_TEXTURE_2D, texture);
@@ -20,6 +20,7 @@ GLuint load_png_texture_from_path(const char *path) {
                          GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid *) buffer);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            free(buffer);
             return texture;
         } else {
             /* Calling png_image_free is optional unless the simplified API was
