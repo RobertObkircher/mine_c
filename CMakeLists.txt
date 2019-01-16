@@ -23,6 +23,7 @@ target_link_libraries(mine_c
         mathc
         dl
         logc
-        png)
+        png
+        simplex)
 
 target_compile_options(mine_c PRIVATE -Wall -Wextra -pedantic )

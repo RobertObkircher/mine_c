@@ -4,3 +4,6 @@
 [submodule "dependencies/log.c"]
 	path = dependencies/log.c
 	url = https://github.com/rxi/log.c
+[submodule "dependencies/open-simplex-noise-in-c"]
+	path = dependencies/open-simplex-noise-in-c
+	url = git@github.com:smcameron/open-simplex-noise-in-c.git

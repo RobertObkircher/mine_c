@@ -21,3 +21,11 @@ add_library(
 )
 add_compile_definitions(logc PUBLIC LOG_USE_COLOR)
 target_include_directories(logc PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/log.c/src")
+
+
+# open simplex noise
+add_library(
+        simplex
+        open-simplex-noise-in-c/open-simplex-noise.c
+)
+target_include_directories(simplex PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/open-simplex-noise-in-c")
