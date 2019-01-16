@@ -283,22 +283,23 @@ static void update_mesh(int index, ChunkInfo *info) {
     //
     // Border to next chunk in direction X
     //
-
+    Blocks *next_x_blocks = NULL;
     if (info->x / CHUNK_SIZE < HORIZONTAL_CHUNKS - 1) {
-        ChunkPointer next_x_chunk = chunk_index[info->x / CHUNK_SIZE + 1][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE];
-        // TODO maybe consider invisible chunks, so that the mesh doesn't have to be rebuild
-        if (next_x_chunk.is_valid && next_x_chunk.is_visible) {
-            Blocks *next_x_blocks = &visible_chunks_blocks[next_x_chunk.pos];
-            int x = CHUNK_SIZE - 1;
-            for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
-                for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
-                    Block current = blocks->data[x][y][z];
-                    Block next_x = next_x_blocks->data[0][y][z];
-                    Block next_y = blocks->data[x][y + 1][z];
-                    Block next_z = blocks->data[x][y][z + 1];
+        ChunkPointer *next_x_chunk = &chunk_index[info->x / CHUNK_SIZE + 1][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE];
+        if (next_x_chunk->is_valid && next_x_chunk->is_visible)
+            next_x_blocks = &visible_chunks_blocks[next_x_chunk->pos];
+    }
 
-                    add_block(x, y, z, current, next_x, next_y, next_z);
-                }
+    if (next_x_blocks) {
+        int x = CHUNK_SIZE - 1;
+        for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
+            for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
+                Block current = blocks->data[x][y][z];
+                Block next_x = next_x_blocks->data[0][y][z];
+                Block next_y = blocks->data[x][y + 1][z];
+                Block next_z = blocks->data[x][y][z + 1];
+
+                add_block(x, y, z, current, next_x, next_y, next_z);
             }
         }
     }
@@ -306,21 +307,23 @@ static void update_mesh(int index, ChunkInfo *info) {
     //
     // Border to next chunk in direction Y
     //
-
+    Blocks *next_y_blocks = NULL;
     if (info->y / CHUNK_SIZE < VERTICAL_CHUNKS - 1) {
-        ChunkPointer next_y_chunk = chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE + 1][info->z / CHUNK_SIZE];
-        if (next_y_chunk.is_valid && next_y_chunk.is_visible) {
-            Blocks *next_y_blocks = &visible_chunks_blocks[next_y_chunk.pos];
-            int y = CHUNK_SIZE - 1;
-            for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
-                for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
-                    Block current = blocks->data[x][y][z];
-                    Block next_x = blocks->data[x + 1][y][z];
-                    Block next_y = next_y_blocks->data[x][0][z];
-                    Block next_z = blocks->data[x][y][z + 1];
+        ChunkPointer *next_y_chunk = &chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE + 1][info->z / CHUNK_SIZE];
+        if (next_y_chunk->is_valid && next_y_chunk->is_visible)
+            next_y_blocks = &visible_chunks_blocks[next_y_chunk->pos];
+    }
 
-                    add_block(x, y, z, current, next_x, next_y, next_z);
-                }
+    if (next_y_blocks) {
+        int y = CHUNK_SIZE - 1;
+        for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
+            for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
+                Block current = blocks->data[x][y][z];
+                Block next_x = blocks->data[x + 1][y][z];
+                Block next_y = next_y_blocks->data[x][0][z];
+                Block next_z = blocks->data[x][y][z + 1];
+
+                add_block(x, y, z, current, next_x, next_y, next_z);
             }
         }
     }
@@ -329,25 +332,78 @@ static void update_mesh(int index, ChunkInfo *info) {
     // Border to next chunk in direction Z
     //
 
+    Blocks *next_z_blocks = NULL;
     if (info->z / CHUNK_SIZE < HORIZONTAL_CHUNKS - 1) {
-        ChunkPointer next_z_chunk = chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE +
-                                                                                            1];
-        if (next_z_chunk.is_valid && next_z_chunk.is_visible) {
-            Blocks *next_z_blocks = &visible_chunks_blocks[next_z_chunk.pos];
-            int z = CHUNK_SIZE - 1;
-            for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
-                for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
-                    Block current = blocks->data[x][y][z];
-                    Block next_x = blocks->data[x + 1][y][z];
-                    Block next_y = blocks->data[x][y + 1][z];
-                    Block next_z = next_z_blocks->data[x][y][0];
+        ChunkPointer *next_z_chunk = &chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE + 1];
+        if (next_z_chunk->is_valid && next_z_chunk->is_visible)
+            next_z_blocks = &visible_chunks_blocks[next_z_chunk->pos];
+    }
 
-                    add_block(x, y, z, current, next_x, next_y, next_z);
-                }
+    if (next_z_blocks) {
+        int z = CHUNK_SIZE - 1;
+        for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
+            for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
+                Block current = blocks->data[x][y][z];
+                Block next_x = blocks->data[x + 1][y][z];
+                Block next_y = blocks->data[x][y + 1][z];
+                Block next_z = next_z_blocks->data[x][y][0];
+
+                add_block(x, y, z, current, next_x, next_y, next_z);
             }
         }
     }
 
+    //
+    // Corners
+    //
+
+    if (next_x_blocks && next_y_blocks) {
+        int a = CHUNK_SIZE - 1;
+        for (int z = 0; z < CHUNK_SIZE - 1; ++z) {
+            Block current = blocks->data[a][a][z];
+            Block next_x = next_x_blocks->data[0][a][z];
+            Block next_y = next_y_blocks->data[a][0][z];
+            Block next_z = blocks->data[a][a][z + 1];
+
+            add_block(a, a, z, current, next_x, next_y, next_z);
+        }
+    }
+    if (next_x_blocks && next_z_blocks) {
+        int a = CHUNK_SIZE - 1;
+        for (int y = 0; y < CHUNK_SIZE - 1; ++y) {
+            Block current = blocks->data[a][y][a];
+            Block next_x = next_x_blocks->data[0][y][a];
+            Block next_y = blocks->data[a][y + 1][a];
+            Block next_z = next_z_blocks->data[a][y][0];
+
+            add_block(a, y, a, current, next_x, next_y, next_z);
+        }
+    }
+    if (next_y_blocks && next_z_blocks) {
+        int a = CHUNK_SIZE - 1;
+        for (int x = 0; x < CHUNK_SIZE - 1; ++x) {
+            Block current = blocks->data[x][a][a];
+            Block next_x = blocks->data[x + 1][a][a];
+            Block next_y = next_y_blocks->data[x][0][a];
+            Block next_z = next_z_blocks->data[x][a][0];
+
+            add_block(x, a, a, current, next_x, next_y, next_z);
+        }
+    }
+
+    if (next_x_blocks && next_y_blocks && next_z_blocks) {
+        int a = CHUNK_SIZE - 1;
+        Block current = blocks->data[a][a][a];
+        Block next_x = next_x_blocks->data[0][a][a];
+        Block next_y = next_y_blocks->data[a][0][a];
+        Block next_z = next_z_blocks->data[a][a][0];
+
+        add_block(a, a, a, current, next_x, next_y, next_z);
+    }
+
+    //
+    // OpenGL
+    //
 
     if (!info->vao) {
         glGenVertexArrays(1, &info->vao);
