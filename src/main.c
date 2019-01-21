@@ -39,6 +39,13 @@ static void load_the_texture(char *path) {
     }
 }
 
+GLuint shader2 = 0;
+static void shader2_callback(char *path) {
+    GLuint new_shader = compile_shaders_and_link_program(shader2, path);
+    if (new_shader)
+        shader2 = new_shader;
+}
+
 // TODO opengl debugging: https://stackoverflow.com/a/43567924
 
 int main(void) {
@@ -74,6 +81,7 @@ int main(void) {
     glCullFace(GL_BACK);
 
     listen_for_file_changes("assets", "shader1.glsl", shader1_callback);
+    listen_for_file_changes("assets", "shader2.glsl", shader2_callback);
     listen_for_file_changes("assets", "image.png", load_the_texture);
 
     double last = glfwGetTime();
@@ -86,6 +94,63 @@ int main(void) {
     cam.position[2] = center;
 
     int fly = 1;
+
+    glUseProgram(shader2);
+    GLint shader2_mvp_location = glGetUniformLocation(shader2, "MVP");
+
+    GLuint shader2_vao;
+    glGenVertexArrays(1, &shader2_vao);
+    glBindVertexArray(shader2_vao);
+    glEnableVertexAttribArray(0);
+
+    GLuint shader2_vertex_pos_buffer;
+    glGenBuffers(1, &shader2_vertex_pos_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, shader2_vertex_pos_buffer);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    GLfloat vertices[] = {
+            -1.0f,-1.0f,-1.0f,
+            -1.0f,-1.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f,-1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f, 1.0f,
+            -1.0f,-1.0f,-1.0f,
+            1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f,-1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f, 1.0f,
+            -1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f, 1.0f,
+            -1.0f,-1.0f, 1.0f,
+            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f, 1.0f,
+            -1.0f,-1.0f, 1.0f,
+            1.0f,-1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f,-1.0f,
+            1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f,-1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f,-1.0f,
+            -1.0f, 1.0f,-1.0f,
+            1.0f, 1.0f, 1.0f,
+            -1.0f, 1.0f,-1.0f,
+            -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f,
+            1.0f,-1.0f, 1.0f
+    };
+    for (int i = 0; i < 36 * 3; ++i) {
+        vertices[i] /= 4;
+    }
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
 
     while (!glfwWindowShouldClose(window)) {
         double t = glfwGetTime();
@@ -108,6 +173,36 @@ int main(void) {
         float projection_view[MAT4_SIZE];
         mat4_multiply(projection_view, cam.perspective, cam.view);
         render_chunks(projection_view);
+
+        {
+            float pos[VEC3_SIZE];
+            int collides = 0;
+            vec3_assign(pos, cam.position);
+            for (float i = 0; i < 100; i += 0.1) {
+                int x = (int) roundf(pos[0]);
+                int y = (int) roundf(pos[1]);
+                int z = (int) roundf(pos[2]);
+                if (block_at(x, y, z)) {
+                    collides = 1;
+                    break;
+                }
+                float delta[VEC3_SIZE];
+                vec3_multiply_f(delta, cam.forward, i);
+                vec3_add(pos, pos, delta);
+            }
+            if (collides) {
+                glUseProgram(shader2);
+                glBindVertexArray(shader2_vao);
+                float model[MAT4_SIZE];
+                float mvp[MAT4_SIZE];
+                mat4_identity(model);
+                mat4_translation(model, model, pos);
+                mat4_multiply(mvp, projection_view, model);
+                glUniformMatrix4fv(shader2_mvp_location, 1, GL_FALSE, mvp);
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+        }
+
 
         glfwSwapBuffers(window);
 
