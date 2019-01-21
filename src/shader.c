@@ -44,13 +44,15 @@ GLuint compile_shaders_and_link_program(GLuint id, char *filepath) {
     if (!shader_text)
         return 0;
 
-    const char *vertex_shader_sources[2] = {"#define COMPILING_VERTEX_SHADER\n", shader_text};
-    GLuint vertex_shader = create_and_compile_shader(vertex_shader_sources, 2, GL_VERTEX_SHADER);
+    const char version[] = "#version 460\n";
+
+    const char *vertex_shader_sources[] = {version, "#define COMPILING_VERTEX_SHADER\n", shader_text};
+    GLuint vertex_shader = create_and_compile_shader(vertex_shader_sources, 3, GL_VERTEX_SHADER);
     if (!vertex_shader)
         return 0;
 
-    const char *fragment_shader_sources[2] = {"#define COMPILING_FRAGMENT_SHADER\n", shader_text};
-    GLuint fragment_shader = create_and_compile_shader(fragment_shader_sources, 2, GL_FRAGMENT_SHADER);
+    const char *fragment_shader_sources[] = {version, "#define COMPILING_FRAGMENT_SHADER\n", shader_text};
+    GLuint fragment_shader = create_and_compile_shader(fragment_shader_sources, 3, GL_FRAGMENT_SHADER);
     if (!fragment_shader) {
         glDeleteShader(vertex_shader);
         return 0;
