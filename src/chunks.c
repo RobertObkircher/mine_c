@@ -44,11 +44,39 @@ typedef struct {
 static ChunkPointer chunk_index[HORIZONTAL_CHUNKS][VERTICAL_CHUNKS][HORIZONTAL_CHUNKS];
 
 struct osn_context *osn;
+
 void setup_world_generator() {
     open_simplex_noise(123, &osn);
 }
+
 void destroy_world_generator() {
     open_simplex_noise_free(osn);
+}
+
+//
+// World generator
+//
+static int octaves = 5; // 8
+static float lacunarity = 2.0f; // 2
+static float gain = 0.5f; // 0.5
+static float a = 2; // 0.5
+static float seed = 14479.0f;
+static float amplitude = 1.0f; // 1
+static float frequency = 0.005f; // 0.02
+
+static float density_at(float x, float y, float z) {
+    float ampl = amplitude;
+    float freq = frequency;
+    float sum = 0;
+    double height = open_simplex_noise2(osn, x / 1024, z / 1024.0f) + 0.7;
+    height *= 10;
+
+    for (int i = 0; i < octaves; ++i) {
+        sum += ampl * (open_simplex_noise4(osn, x * freq, y * freq, z * freq, seed * freq) - a * (y - 128.0f - height) / 128.0f);
+        ampl *= gain;
+        freq *= lacunarity;
+    }
+    return sum;
 }
 
 void make_visible_chunk(int x, int y, int z) {
@@ -64,20 +92,29 @@ void make_visible_chunk(int x, int y, int z) {
                 int block_x = x + ix;
                 int block_y = y + iy;
                 int block_z = z + iz;
-                float level = (float)block_y / (CHUNK_SIZE * VERTICAL_CHUNKS) - 0.5f;
 
-                float density = (float)open_simplex_noise3(osn, block_x,block_y,block_z) - 4 * level;
+                float density = density_at(block_x, block_y, block_z);
+                Block block = 0;
 
-                if (density > 0.5) {
-                    blocks.data[ix][iy][iz] = 2;
-                } else if (density > 0.3) {
-                    blocks.data[ix][iy][iz] = 1;
+                if (density > 0.15) {
+                    block = 3;
+                } else if (density > 0) {
+                    if (density < 0.04 && y > 126 && y < 130) {
+                        block = 7;
+                    } else {
+                        block = 1;
+                    }
+                } else if (y > 127) {
+                    block = 0;
+                } else {
+                    block = 2;
                 }
-//                if (y + iy < CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
-//                    blocks.data[ix][iy][iz] = 2;
-//                } else if (y + iy == CHUNK_SIZE * VERTICAL_CHUNKS / 2) {
-//                    blocks.data[ix][iy][iz] = rand() & 1;
-//                }
+
+               if (block > 2) {
+                   block = 2;
+               }
+
+                blocks.data[ix][iy][iz] = block;
             }
         }
     }
@@ -89,6 +126,9 @@ void make_visible_chunk(int x, int y, int z) {
     visible_chunks_infos[visible_chunks_count++] = (ChunkInfo) {.x = x, .y = y, .z = z, .needs_mesh_update = 1};
 }
 
+//
+//
+//
 
 static int is_culled(ChunkInfo *info) {
     return 0; // TODO

@@ -90,7 +90,7 @@ int main(void) {
 
     Camera cam = default_camera;
     cam.position[0] = center;
-    cam.position[1] = center;
+    cam.position[1] = VERTICAL_CHUNKS * CHUNK_SIZE / 1.8f;
     cam.position[2] = center;
 
     int fly = 1;
@@ -150,7 +150,6 @@ int main(void) {
         vertices[i] /= 4;
     }
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
 
     while (!glfwWindowShouldClose(window)) {
         double t = glfwGetTime();
