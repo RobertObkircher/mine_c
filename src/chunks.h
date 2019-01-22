@@ -8,6 +8,20 @@
 
 typedef unsigned char Block;
 
+typedef enum {
+    AIR_BLOCK,
+    GRASS_BLOCK,
+    WATER_BLOCK,
+    STONE_BLOCK,
+    ICE_BLOCK,
+    BEDROCK_BLOCK,
+    WOOD_BLOCK,
+    SAND_BLOCK,
+    BRICKS_BLOCK,
+    PUMPKIN_BLOCK,
+    LEAVES_BLOCK,
+} BlockType;
+
 void setup_world_generator();
 void destroy_world_generator();
 

@@ -95,24 +95,19 @@ void make_visible_chunk(int x, int y, int z) {
 
                 float density = density_at(block_x, block_y, block_z);
                 Block block = 0;
-
                 if (density > 0.15) {
-                    block = 3;
+                    block = STONE_BLOCK;
                 } else if (density > 0) {
                     if (density < 0.04 && y > 126 && y < 130) {
-                        block = 7;
+                        block = SAND_BLOCK;
                     } else {
-                        block = 1;
+                        block = GRASS_BLOCK;
                     }
                 } else if (y > 127) {
-                    block = 0;
+                    block = AIR_BLOCK;
                 } else {
-                    block = 2;
+                    block = WATER_BLOCK;
                 }
-
-               if (block > 2) {
-                   block = 2;
-               }
 
                 blocks.data[ix][iy][iz] = block;
             }
