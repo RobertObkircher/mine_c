@@ -72,7 +72,8 @@ static float density_at(float x, float y, float z) {
     height *= 10;
 
     for (int i = 0; i < octaves; ++i) {
-        sum += ampl * (open_simplex_noise4(osn, x * freq, y * freq, z * freq, seed * freq) - a * (y - 128.0f - height) / 128.0f);
+        sum += ampl * (open_simplex_noise4(osn, x * freq, y * freq, z * freq, seed * freq) -
+                       a * (y - 128.0f - height) / 128.0f);
         ampl *= gain;
         freq *= lacunarity;
     }
@@ -159,7 +160,7 @@ static void add_quad(Block block, ChunkVertex v0, ChunkVertex v1, ChunkVertex v2
     //
     // Apply texture coordinates TODO move somewhere else
     //
-    int num_tiles = 2;
+    int num_tiles = 4;
     float tile_size = 1.0f / num_tiles;
 
     v0.u = v1.u = 0;
@@ -171,13 +172,23 @@ static void add_quad(Block block, ChunkVertex v0, ChunkVertex v1, ChunkVertex v2
     int x_offset;
     int y_offset;
     switch (block) {
-        case 1: {
+        case GRASS_BLOCK: {
             x_offset = 0;
             y_offset = 0;
             break;
         }
-        case 2: {
+        case STONE_BLOCK: {
             x_offset = 1;
+            y_offset = 0;
+            break;
+        }
+        case WATER_BLOCK: {
+            x_offset = 2;
+            y_offset = 0;
+            break;
+        }
+        case SAND_BLOCK: {
+            x_offset = 3;
             y_offset = 0;
             break;
         }
