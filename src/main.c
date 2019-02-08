@@ -40,6 +40,7 @@ static void load_the_texture(char *path) {
 }
 
 GLuint shader2 = 0;
+
 static void shader2_callback(char *path) {
     GLuint new_shader = compile_shaders_and_link_program(shader2, path);
     if (new_shader)
@@ -53,10 +54,10 @@ int main(void) {
     glfwSetErrorCallback(gl_error_callback);
 
     setup_world_generator();
-    for (int x = 0; x < HORIZONTAL_CHUNKS; ++x) {
-        for (int y = 0; y < VERTICAL_CHUNKS; ++y) {
-            for (int z = 0; z < HORIZONTAL_CHUNKS; ++z) {
-                make_visible_chunk(CHUNK_SIZE * x, CHUNK_SIZE * y, CHUNK_SIZE * z);
+    for (unsigned int x = 0; x < HORIZONTAL_CHUNKS; ++x) {
+        for (unsigned int y = 0; y < VERTICAL_CHUNKS; ++y) {
+            for (unsigned int z = 0; z < HORIZONTAL_CHUNKS; ++z) {
+                make_visible_chunk((ChunkPos) {.x = x, .y = y, .z = z});
             }
         }
     }
@@ -109,42 +110,42 @@ int main(void) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     GLfloat vertices[] = {
-            -1.0f,-1.0f,-1.0f,
-            -1.0f,-1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f,
             -1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f,-1.0f,
-            -1.0f,-1.0f,-1.0f,
-            -1.0f, 1.0f,-1.0f,
-            1.0f,-1.0f, 1.0f,
-            -1.0f,-1.0f,-1.0f,
-            1.0f,-1.0f,-1.0f,
-            1.0f, 1.0f,-1.0f,
-            1.0f,-1.0f,-1.0f,
-            -1.0f,-1.0f,-1.0f,
-            -1.0f,-1.0f,-1.0f,
+            1.0f, 1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, 1.0f, -1.0f,
+            1.0f, -1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, 1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
             -1.0f, 1.0f, 1.0f,
-            -1.0f, 1.0f,-1.0f,
-            1.0f,-1.0f, 1.0f,
-            -1.0f,-1.0f, 1.0f,
-            -1.0f,-1.0f,-1.0f,
+            -1.0f, 1.0f, -1.0f,
+            1.0f, -1.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f,
             -1.0f, 1.0f, 1.0f,
-            -1.0f,-1.0f, 1.0f,
-            1.0f,-1.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f,
+            1.0f, -1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
-            1.0f,-1.0f,-1.0f,
-            1.0f, 1.0f,-1.0f,
-            1.0f,-1.0f,-1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, 1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
             1.0f, 1.0f, 1.0f,
-            1.0f,-1.0f, 1.0f,
+            1.0f, -1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f,-1.0f,
-            -1.0f, 1.0f,-1.0f,
+            1.0f, 1.0f, -1.0f,
+            -1.0f, 1.0f, -1.0f,
             1.0f, 1.0f, 1.0f,
-            -1.0f, 1.0f,-1.0f,
+            -1.0f, 1.0f, -1.0f,
             -1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
             -1.0f, 1.0f, 1.0f,
-            1.0f,-1.0f, 1.0f
+            1.0f, -1.0f, 1.0f
     };
     for (int i = 0; i < 36 * 3; ++i) {
         vertices[i] /= 4;
@@ -178,10 +179,12 @@ int main(void) {
             int collides = 0;
             vec3_assign(pos, cam.position);
             for (float i = 0; i < 100; i += 0.1) {
-                int x = (int) roundf(pos[0]);
-                int y = (int) roundf(pos[1]);
-                int z = (int) roundf(pos[2]);
-                if (block_at(x, y, z)) {
+                BlockPos p = (BlockPos) {
+                        .x = (unsigned int) roundf(pos[0]),
+                        .y = (unsigned int) roundf(pos[1]),
+                        .z = (unsigned int) roundf(pos[2]),
+                };
+                if (block_at(p)) {
                     collides = 1;
                     break;
                 }
@@ -211,10 +214,10 @@ int main(void) {
 
         float player_speed = (float) dt;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            move_camera(&cam, cam.forward, 3 * player_speed);
+            move_camera(&cam, cam.forward, 5 * player_speed);
         }
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            move_camera(&cam, cam.forward, -2 * player_speed);
+            move_camera(&cam, cam.forward, -5 * player_speed);
         }
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
             rotate_camera(&cam, 0, player_speed);
@@ -247,14 +250,20 @@ int main(void) {
         }
         if (!fly) {
             int height = -10;
-            for (unsigned int y = cam.position[1]; y >= 0; --y) {
-                if (block_at(cam.position[0], y, cam.position[2])) {
+            for (unsigned int y = (unsigned int) cam.position[1]; y >= 0; --y) {
+                BlockPos p = (BlockPos) {
+                        .x = (unsigned int) cam.position[0],
+                        .y = y,
+                        .z = (unsigned int) cam.position[2]
+                };
+                if (block_at(p)) {
                     height = y;
                     break;
                 }
             }
             cam.position[1] = fmaxf(height + 2, cam.position[1] - player_speed);
         }
+        center_world_at((unsigned int) cam.position[0], (unsigned int) cam.position[2], CHUNK_SIZE);
 
     }
 

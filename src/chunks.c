@@ -13,9 +13,7 @@ typedef struct {
 static const Blocks empty_blocks;
 
 typedef struct {
-    unsigned int x;
-    unsigned int y;
-    unsigned int z;
+    ChunkPos pos;
     GLuint vao;
     GLuint vertex_buffer;
     GLuint index_buffer;
@@ -40,8 +38,80 @@ typedef struct {
     unsigned int pos : 30;
 } ChunkPointer;
 
-//TODO index offset
+BlockPos chunk_to_block_pos(ChunkPos chunkPos) {
+    return (BlockPos) {
+            .x = chunkPos.x * CHUNK_SIZE,
+            .y = chunkPos.y * CHUNK_SIZE,
+            .z = chunkPos.z * CHUNK_SIZE
+    };
+}
+
+ChunkPos chunk_pos_for_block(BlockPos blockPos) {
+    return (ChunkPos) {
+            .x = blockPos.x / CHUNK_SIZE,
+            .y = blockPos.y / CHUNK_SIZE,
+            .z = blockPos.z / CHUNK_SIZE
+    };
+}
+
+static unsigned int chunk_index_offset_x = 0;
+static unsigned int chunk_index_offset_z = 0;
 static ChunkPointer chunk_index[HORIZONTAL_CHUNKS][VERTICAL_CHUNKS][HORIZONTAL_CHUNKS];
+
+static inline ChunkPointer *access_chunk_index(ChunkPos pos) {
+    return &chunk_index[pos.x % HORIZONTAL_CHUNKS][pos.y][pos.z % HORIZONTAL_CHUNKS];
+}
+
+static inline int can_acces_chunk(ChunkPos pos) {
+    return pos.x >= chunk_index_offset_x
+           && pos.x < chunk_index_offset_x + HORIZONTAL_CHUNKS
+           && pos.y < VERTICAL_CHUNKS
+           && pos.z >= chunk_index_offset_z
+           && pos.z < chunk_index_offset_z + HORIZONTAL_CHUNKS;
+}
+
+void center_world_at(unsigned int player_x, unsigned int player_z, unsigned int range) {
+    unsigned int half_size = HORIZONTAL_CHUNKS * CHUNK_SIZE / 2;
+    unsigned int current_center_x = chunk_index_offset_x * CHUNK_SIZE + half_size;
+    unsigned int current_center_z = chunk_index_offset_z * CHUNK_SIZE + half_size;
+
+    int dx = player_x - current_center_x;
+    int dz = player_z - current_center_z;
+
+    if (dx * dx + dz * dz > range * range) {
+        dx /= CHUNK_SIZE;
+        dz /= CHUNK_SIZE;
+        // only think about the new chunks that are added
+        // -d..-1 or size..size+d
+        unsigned int offset_x = dx >= 0 ? chunk_index_offset_x + HORIZONTAL_CHUNKS : chunk_index_offset_x + dx;
+        unsigned int offset_z = dz >= 0 ? chunk_index_offset_z + HORIZONTAL_CHUNKS : chunk_index_offset_z + dz;
+
+        chunk_index_offset_x += dx;
+        chunk_index_offset_z += dz;
+
+        unsigned int end_x = (unsigned int) abs(dx);
+        if (end_x > HORIZONTAL_CHUNKS)
+            end_x = HORIZONTAL_CHUNKS;
+        for (unsigned int x = 0; x < end_x; ++x) {
+            for (unsigned int y = 0; y < VERTICAL_CHUNKS; ++y) {
+                for (unsigned int z = 0; z < HORIZONTAL_CHUNKS; ++z) {
+                    make_visible_chunk((ChunkPos) {offset_x + x, y, z});
+                }
+            }
+        }
+
+        unsigned int end_z = (unsigned int) abs(dz);
+        if (end_z > HORIZONTAL_CHUNKS)
+            end_z = HORIZONTAL_CHUNKS;
+        for (unsigned int z = 0; z < end_z; ++z) {
+            for (unsigned int x = 0; x < HORIZONTAL_CHUNKS; ++x) {
+                for (unsigned int y = 0; y < VERTICAL_CHUNKS; ++y) {
+                    make_visible_chunk((ChunkPos) {x, y, offset_z + z});
+                }
+            }
+        }
+    }
+}
 
 struct osn_context *osn;
 
@@ -80,31 +150,33 @@ static float density_at(float x, float y, float z) {
     return sum;
 }
 
-void make_visible_chunk(int x, int y, int z) {
+void make_visible_chunk(ChunkPos position) {
     realloc_if_too_small((void **) &visible_chunks_blocks, sizeof(Blocks), visible_chunks_size,
                          visible_chunks_count + 1);
     visible_chunks_size = realloc_if_too_small((void **) &visible_chunks_infos, sizeof(ChunkInfo), visible_chunks_size,
                                                visible_chunks_count + 1);
 
+    BlockPos blockPos = chunk_to_block_pos(position);
+
     Blocks blocks = empty_blocks;
     for (int ix = 0; ix < CHUNK_SIZE; ++ix) {
         for (int iy = 0; iy < CHUNK_SIZE; ++iy) {
             for (int iz = 0; iz < CHUNK_SIZE; ++iz) {
-                int block_x = x + ix;
-                int block_y = y + iy;
-                int block_z = z + iz;
+                int block_x = blockPos.x + ix;
+                int block_y = blockPos.y + iy;
+                int block_z = blockPos.z + iz;
 
                 float density = density_at(block_x, block_y, block_z);
                 Block block = 0;
                 if (density > 0.15) {
                     block = STONE_BLOCK;
                 } else if (density > 0) {
-                    if (density < 0.04 && y > 126 && y < 130) {
+                    if (density < 0.04 && block_y > 126 && block_y < 130) {
                         block = SAND_BLOCK;
                     } else {
                         block = GRASS_BLOCK;
                     }
-                } else if (y > 127) {
+                } else if (block_y > 127) {
                     block = AIR_BLOCK;
                 } else {
                     block = WATER_BLOCK;
@@ -115,11 +187,11 @@ void make_visible_chunk(int x, int y, int z) {
         }
     }
 
-    chunk_index[x / CHUNK_SIZE][y / CHUNK_SIZE][z /
-                                                CHUNK_SIZE] = (ChunkPointer) {.is_valid = 1, .is_visible = 1, .pos = visible_chunks_count};
+    ChunkPointer *cp = access_chunk_index(position);
+    *cp = (ChunkPointer) {.is_valid = 1, .is_visible = 1, .pos = visible_chunks_count};
 
     visible_chunks_blocks[visible_chunks_count] = blocks;
-    visible_chunks_infos[visible_chunks_count++] = (ChunkInfo) {.x = x, .y = y, .z = z, .needs_mesh_update = 1};
+    visible_chunks_infos[visible_chunks_count++] = (ChunkInfo) {.pos = position, .needs_mesh_update = 1};
 }
 
 //
@@ -319,19 +391,17 @@ void add_block(int x, int y, int z, Block current, Block next_x, Block next_y, B
     }
 }
 
-Block block_at(unsigned int x, unsigned int y, unsigned int z) {
-    unsigned int chunk_x = x / CHUNK_SIZE;
-    unsigned int chunk_y = y / CHUNK_SIZE;
-    unsigned int chunk_z = z / CHUNK_SIZE;
+Block block_at(BlockPos position) {
+    ChunkPos chunkPos = chunk_pos_for_block(position);
 
-    if (chunk_x >= 0 && chunk_x < HORIZONTAL_CHUNKS
-        && chunk_y >= 0 && chunk_y < VERTICAL_CHUNKS
-        && chunk_z >= 0 && chunk_z < HORIZONTAL_CHUNKS) {
-
-        ChunkPointer *p = &chunk_index[chunk_x][chunk_y][chunk_z];
+    if (can_acces_chunk(chunkPos)) {
+        ChunkPointer *p = access_chunk_index(chunkPos);
         if (p && p->is_valid && p->is_visible) {
             Blocks *blocks = &visible_chunks_blocks[p->pos];
-            return blocks->data[x - chunk_x * CHUNK_SIZE][y - chunk_y * CHUNK_SIZE][z - chunk_z * CHUNK_SIZE];
+            return blocks->data
+            [position.x - chunkPos.x * CHUNK_SIZE]
+            [position.y - chunkPos.y * CHUNK_SIZE]
+            [position.z - chunkPos.z * CHUNK_SIZE];
         }
     }
     return 0;
@@ -366,8 +436,10 @@ static void update_mesh(int index, ChunkInfo *info) {
     // Border to next chunk in direction X
     //
     Blocks *next_x_blocks = NULL;
-    if (info->x / CHUNK_SIZE < HORIZONTAL_CHUNKS - 1) {
-        ChunkPointer *next_x_chunk = &chunk_index[info->x / CHUNK_SIZE + 1][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE];
+    ChunkPos next_x_pos = info->pos;
+    ++next_x_pos.x;
+    if (can_acces_chunk(next_x_pos)) {
+        ChunkPointer *next_x_chunk = access_chunk_index(next_x_pos);
         if (next_x_chunk->is_valid && next_x_chunk->is_visible)
             next_x_blocks = &visible_chunks_blocks[next_x_chunk->pos];
     }
@@ -389,9 +461,11 @@ static void update_mesh(int index, ChunkInfo *info) {
     //
     // Border to next chunk in direction Y
     //
+    ChunkPos next_y_pos = info->pos;
+    ++next_y_pos.y;
     Blocks *next_y_blocks = NULL;
-    if (info->y / CHUNK_SIZE < VERTICAL_CHUNKS - 1) {
-        ChunkPointer *next_y_chunk = &chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE + 1][info->z / CHUNK_SIZE];
+    if (can_acces_chunk(next_y_pos)) {
+        ChunkPointer *next_y_chunk = access_chunk_index(next_y_pos);
         if (next_y_chunk->is_valid && next_y_chunk->is_visible)
             next_y_blocks = &visible_chunks_blocks[next_y_chunk->pos];
     }
@@ -414,9 +488,11 @@ static void update_mesh(int index, ChunkInfo *info) {
     // Border to next chunk in direction Z
     //
 
+    ChunkPos next_z_pos = info->pos;
+    ++next_z_pos.z;
     Blocks *next_z_blocks = NULL;
-    if (info->z / CHUNK_SIZE < HORIZONTAL_CHUNKS - 1) {
-        ChunkPointer *next_z_chunk = &chunk_index[info->x / CHUNK_SIZE][info->y / CHUNK_SIZE][info->z / CHUNK_SIZE + 1];
+    if (can_acces_chunk(next_z_pos)) {
+        ChunkPointer *next_z_chunk = access_chunk_index(next_z_pos);
         if (next_z_chunk->is_valid && next_z_chunk->is_visible)
             next_z_blocks = &visible_chunks_blocks[next_z_chunk->pos];
     }
@@ -536,7 +612,8 @@ void render_chunks(float projection_view[]) {
             update_mesh(i, info);
 
         mat4_identity(model);
-        mat4_translation(model, model, vec3(pos, info->x, info->y, info->z));
+        mat4_translation(model, model,
+                         vec3(pos, (int)info->pos.x * CHUNK_SIZE, (int)info->pos.y * CHUNK_SIZE, (int)info->pos.z * CHUNK_SIZE));
         mat4_multiply(mvp, projection_view, model);
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *) mvp);
 

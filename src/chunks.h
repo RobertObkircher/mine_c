@@ -22,13 +22,27 @@ typedef enum {
     LEAVES_BLOCK,
 } BlockType;
 
+typedef struct {
+    unsigned int x;
+    unsigned int y;
+    unsigned int z;
+} ChunkPos;
+
+typedef struct {
+    unsigned int x;
+    unsigned int y;
+    unsigned int z;
+} BlockPos;
+
 void setup_world_generator();
 void destroy_world_generator();
 
 void render_chunks(float projection_view[]);
 
-void make_visible_chunk(int x, int y, int z);
+void make_visible_chunk(ChunkPos position);
 
-Block block_at(unsigned int x, unsigned int y, unsigned int z);
+Block block_at(BlockPos position);
+
+void center_world_at(unsigned int player_x, unsigned int player_z, unsigned int range);
 
 #endif //MINE_C_CHUNKS_H
