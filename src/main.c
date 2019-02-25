@@ -212,7 +212,7 @@ int main(void) {
 
         glfwPollEvents();
 
-        float player_speed = (float) dt;
+        float player_speed = (float) dt * 4;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
             move_camera(&cam, cam.forward, 5 * player_speed);
         }
@@ -263,7 +263,7 @@ int main(void) {
             }
             cam.position[1] = fmaxf(height + 2, cam.position[1] - player_speed);
         }
-        center_world_at((unsigned int) cam.position[0], (unsigned int) cam.position[2], CHUNK_SIZE);
+        center_world_at((unsigned int) cam.position[0], (unsigned int) cam.position[2], 2 * CHUNK_SIZE);
 
     }
 

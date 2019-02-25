@@ -1,18 +1,16 @@
 #include "shader.h"
 #include "allocorexit.h"
-#include "dynarray.h"
 #include "files.h"
+#include "list.h"
 #include <log.h>
 #include <stdlib.h>
 #include <string.h>
 
-static GLuint *programs;
-static size_t programs_count;
-static size_t programs_size;
+static list(GLuint) programs;
 
 void delete_shader_programs() {
-    while (programs_count > 0)
-        glDeleteProgram(programs[--programs_count]);
+    while (programs.length > 0)
+        glDeleteProgram(programs.data[--programs.length]);
 }
 
 static GLuint create_and_compile_shader(const char *sources[], int count, GLenum type) {
@@ -67,8 +65,7 @@ GLuint compile_shaders_and_link_program(GLuint id, char *filepath) {
             log_error("unable to create program");
             return 0;
         }
-        programs_size = realloc_if_too_small((void **) &programs, sizeof(GLuint), programs_size, ++programs_count);
-        programs[programs_count - 1] = program;
+        list_add(programs, program);
     }
 
     glAttachShader(program, vertex_shader);

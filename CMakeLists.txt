@@ -10,11 +10,11 @@ add_executable(mine_c
         src/filereload.c src/filereload.h
         src/shader.c src/shader.h
         src/allocorexit.c src/allocorexit.h
-        src/dynarray.c src/dynarray.h
         src/chunks.c src/chunks.h
         src/textures.c src/textures.h
         src/files.c src/files.h
-        src/camera.c src/camera.h)
+        src/camera.c src/camera.h
+        src/list.h)
 
 target_link_libraries(mine_c
         glfw

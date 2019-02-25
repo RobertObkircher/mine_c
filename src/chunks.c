@@ -1,5 +1,5 @@
 #include "chunks.h"
-#include "dynarray.h"
+#include "list.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -22,10 +22,8 @@ typedef struct {
 } ChunkInfo;
 
 // Visible chunks
-static int visible_chunks_count;
-static int visible_chunks_size;
-static Blocks *visible_chunks_blocks;
-static ChunkInfo *visible_chunks_infos;
+static list(ChunkInfo) visible_chunks_infos;
+static list(Blocks) visible_chunks_blocks;
 
 // TODO invisible chunks
 //static int invisible_chunks_count;
@@ -151,11 +149,6 @@ static float density_at(float x, float y, float z) {
 }
 
 void make_visible_chunk(ChunkPos position) {
-    realloc_if_too_small((void **) &visible_chunks_blocks, sizeof(Blocks), visible_chunks_size,
-                         visible_chunks_count + 1);
-    visible_chunks_size = realloc_if_too_small((void **) &visible_chunks_infos, sizeof(ChunkInfo), visible_chunks_size,
-                                               visible_chunks_count + 1);
-
     BlockPos blockPos = chunk_to_block_pos(position);
 
     Blocks blocks = empty_blocks;
@@ -188,10 +181,10 @@ void make_visible_chunk(ChunkPos position) {
     }
 
     ChunkPointer *cp = access_chunk_index(position);
-    *cp = (ChunkPointer) {.is_valid = 1, .is_visible = 1, .pos = visible_chunks_count};
+    *cp = (ChunkPointer) {.is_valid = 1, .is_visible = 1, .pos = visible_chunks_blocks.length};
 
-    visible_chunks_blocks[visible_chunks_count] = blocks;
-    visible_chunks_infos[visible_chunks_count++] = (ChunkInfo) {.pos = position, .needs_mesh_update = 1};
+    list_add(visible_chunks_blocks, blocks);
+    list_add(visible_chunks_infos, ((ChunkInfo) {.pos = position, .needs_mesh_update = 1}));
 }
 
 //
@@ -213,12 +206,8 @@ typedef struct {
 
 typedef unsigned short ChunkIndex;
 
-static ChunkIndex vertex_buffer_size;
-static ChunkIndex vertex_buffer_elements;
-static ChunkVertex *vertex_buffer;
-static size_t index_buffer_size;
-static int index_buffer_elements;
-static ChunkIndex *index_buffer;
+static list(ChunkVertex) vertex_buffer;
+static list(ChunkIndex) index_buffer;
 
 /*
  * 0----3
@@ -282,25 +271,24 @@ static void add_quad(Block block, ChunkVertex v0, ChunkVertex v1, ChunkVertex v2
     //
     // Add quad
     //
+    {
+        ChunkIndex i = vertex_buffer.length;
 
-    // TODO move to update_mesh and increase growth
-    index_buffer_size = realloc_if_too_small((void **) &index_buffer, sizeof(ChunkIndex), index_buffer_size,
-                                             index_buffer_elements + 6);
-    vertex_buffer_size = (ChunkIndex) realloc_if_too_small((void **) &vertex_buffer, sizeof(ChunkVertex),
-                                                           vertex_buffer_size,
-                                                           vertex_buffer_elements + 4);
+        list_ensure_free_capacity(index_buffer,6);
+        list_add_unsafe(index_buffer, i);
+        list_add_unsafe(index_buffer, i + 1);
+        list_add_unsafe(index_buffer, i + 2);
+        list_add_unsafe(index_buffer, i);
+        list_add_unsafe(index_buffer, i + 2);
+        list_add_unsafe(index_buffer, i + 3);
 
-    index_buffer[index_buffer_elements++] = vertex_buffer_elements;
-    index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 1;
-    index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 2;
-    index_buffer[index_buffer_elements++] = vertex_buffer_elements;
-    index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 2;
-    index_buffer[index_buffer_elements++] = vertex_buffer_elements + (ChunkIndex) 3;
+        list_ensure_free_capacity(vertex_buffer, 4);
+        list_add_unsafe(vertex_buffer, v0);
+        list_add_unsafe(vertex_buffer, v1);
+        list_add_unsafe(vertex_buffer, v2);
+        list_add_unsafe(vertex_buffer, v3);
+    }
 
-    vertex_buffer[vertex_buffer_elements++] = v0;
-    vertex_buffer[vertex_buffer_elements++] = v1;
-    vertex_buffer[vertex_buffer_elements++] = v2;
-    vertex_buffer[vertex_buffer_elements++] = v3;
 }
 
 
@@ -397,7 +385,7 @@ Block block_at(BlockPos position) {
     if (can_acces_chunk(chunkPos)) {
         ChunkPointer *p = access_chunk_index(chunkPos);
         if (p && p->is_valid && p->is_visible) {
-            Blocks *blocks = &visible_chunks_blocks[p->pos];
+            Blocks *blocks = &visible_chunks_blocks.data[p->pos];
             return blocks->data
             [position.x - chunkPos.x * CHUNK_SIZE]
             [position.y - chunkPos.y * CHUNK_SIZE]
@@ -410,10 +398,10 @@ Block block_at(BlockPos position) {
 static void update_mesh(int index, ChunkInfo *info) {
     // TODO limit update time per frame
 
-    Blocks *blocks = &visible_chunks_blocks[index];
+    Blocks *blocks = &visible_chunks_blocks.data[index];
 
-    vertex_buffer_elements = 0;
-    index_buffer_elements = 0;
+    vertex_buffer.length = 0;
+    index_buffer.length = 0;
 
     //
     // Add blocks within the chunk
@@ -441,7 +429,7 @@ static void update_mesh(int index, ChunkInfo *info) {
     if (can_acces_chunk(next_x_pos)) {
         ChunkPointer *next_x_chunk = access_chunk_index(next_x_pos);
         if (next_x_chunk->is_valid && next_x_chunk->is_visible)
-            next_x_blocks = &visible_chunks_blocks[next_x_chunk->pos];
+            next_x_blocks = &visible_chunks_blocks.data[next_x_chunk->pos];
     }
 
     if (next_x_blocks) {
@@ -467,7 +455,7 @@ static void update_mesh(int index, ChunkInfo *info) {
     if (can_acces_chunk(next_y_pos)) {
         ChunkPointer *next_y_chunk = access_chunk_index(next_y_pos);
         if (next_y_chunk->is_valid && next_y_chunk->is_visible)
-            next_y_blocks = &visible_chunks_blocks[next_y_chunk->pos];
+            next_y_blocks = &visible_chunks_blocks.data[next_y_chunk->pos];
     }
 
     if (next_y_blocks) {
@@ -494,7 +482,7 @@ static void update_mesh(int index, ChunkInfo *info) {
     if (can_acces_chunk(next_z_pos)) {
         ChunkPointer *next_z_chunk = access_chunk_index(next_z_pos);
         if (next_z_chunk->is_valid && next_z_chunk->is_visible)
-            next_z_blocks = &visible_chunks_blocks[next_z_chunk->pos];
+            next_z_blocks = &visible_chunks_blocks.data[next_z_chunk->pos];
     }
 
     if (next_z_blocks) {
@@ -572,7 +560,7 @@ static void update_mesh(int index, ChunkInfo *info) {
         glGenBuffers(1, &info->vertex_buffer);
     }
     glBindBuffer(GL_ARRAY_BUFFER, info->vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_elements * sizeof(ChunkVertex), vertex_buffer, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertex_buffer.length * sizeof(ChunkVertex), vertex_buffer.data, GL_STATIC_DRAW);
 
     GLint vpos_location = glGetAttribLocation(shader1, "vPos");
     glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), 0);
@@ -586,9 +574,9 @@ static void update_mesh(int index, ChunkInfo *info) {
         glGenBuffers(1, &info->index_buffer);
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, info->index_buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_buffer_elements * sizeof(ChunkIndex), index_buffer, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_buffer.length * sizeof(ChunkIndex), index_buffer.data, GL_STATIC_DRAW);
 
-    info->number_of_indices = index_buffer_elements;
+    info->number_of_indices = index_buffer.length;
     info->needs_mesh_update = 0;
 }
 
@@ -602,8 +590,8 @@ void render_chunks(float projection_view[]) {
 
     GLuint mvp_location = glGetUniformLocation(shader1, "MVP");
 
-    for (int i = 0; i < visible_chunks_count; ++i) {
-        ChunkInfo *info = &visible_chunks_infos[i];
+    for (int i = 0; i < visible_chunks_infos.length; ++i) {
+        ChunkInfo *info = &visible_chunks_infos.data[i];
 
         if (is_culled(info))
             continue;
@@ -613,7 +601,8 @@ void render_chunks(float projection_view[]) {
 
         mat4_identity(model);
         mat4_translation(model, model,
-                         vec3(pos, (int)info->pos.x * CHUNK_SIZE, (int)info->pos.y * CHUNK_SIZE, (int)info->pos.z * CHUNK_SIZE));
+                         vec3(pos, (int) info->pos.x * CHUNK_SIZE, (int) info->pos.y * CHUNK_SIZE,
+                              (int) info->pos.z * CHUNK_SIZE));
         mat4_multiply(mvp, projection_view, model);
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *) mvp);
 
